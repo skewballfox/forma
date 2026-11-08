@@ -1,0 +1,7 @@
+# Materia matches keys without regard to case, so forma does too. This
+# extension uses lower-case materia keys; materia applies it, so forma must.
+[hosts.forge]
+components = ["app"]
+
+[hosts.forge.extensions.app.forma.account]
+linger = true

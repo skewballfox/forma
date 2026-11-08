@@ -1,0 +1,58 @@
+# Repository manifest. Materia reads Hosts and Roles; forma also reads the
+# [Forma] tables, which materia ignores.
+
+[Roles.streaming]
+Components = ["nvidia-driver", "moonshine"]
+
+[Hosts.forge]
+Roles = ["streaming"]
+
+# Per-host forma settings
+[Hosts.forge.Forma]
+Signing = "tpm"
+
+# Same replace semantics as materia's Overrides: this replaces the
+# component's whole Images list for this host (here, to match this host's
+# NVIDIA driver).
+[[Hosts.forge.Overrides.nvidia-driver.Forma.Images]]
+Tag = "moonshine/nvidia-driver:latest"
+Containerfile = "build/nvidia-driver.Dockerfile"
+Context = "build"
+BuildArgs = { NV_VERSION = "580.105.08" }
+
+# Same extend semantics as materia's Extensions: merges into the component's
+# [Forma] table for this host.
+[Hosts.forge.Extensions.moonshine.Forma.Update]
+Schedule = "Sun *-*-* 04:00:00"
+
+# Settings shared by every host
+[Forma]
+Signing = "auto"
+
+[Forma.Builder]
+Account = "forma-build"
+SubIds = 65536
+
+[Forma.Signer]
+Account = "forma-sign"
+
+[Forma.Store]
+Root = "/var/lib/forma/store"
+
+# Base image requirements for every host. These add to the host's
+# policy.json; they can never loosen it.
+[Forma.BaseImages]
+# listed: base images that match a Trust scope must satisfy it.
+Require = "listed"
+
+[[Forma.BaseImages.Trust]]
+Scope = "registry.fedoraproject.org"
+Type = "sigstore-key"
+# Repository path. apply installs it and pins its fingerprint.
+Key = "trust/fedora-registry.pub"
+
+[[Forma.BaseImages.Trust]]
+Scope = "quay.io/fedora"
+Type = "sigstore-keyless"
+Issuer = "https://accounts.google.com"
+Subject = "release@fedoraproject.org"

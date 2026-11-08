@@ -1,0 +1,7 @@
+#!/bin/bash
+# Fedora's /etc/nsswitch.conf is a symlink into /etc/authselect, which the
+# image does not populate, so an extra tree cannot write through it. Replace
+# the link with the file the tests need (altfiles for the vendor group).
+set -euo pipefail
+rm -f /etc/nsswitch.conf
+install -m 0644 /usr/lib/forma-user-test/nsswitch.conf /etc/nsswitch.conf

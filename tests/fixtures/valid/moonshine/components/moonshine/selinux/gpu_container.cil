@@ -1,0 +1,1 @@
+(block gpu_container (blockinherit container))

@@ -1,0 +1,3 @@
+[Volume]
+# Holds moonshine-bus-proxy's socket. A plain volume: forma finds no image here.
+VolumeName=moonshine-bus-vol

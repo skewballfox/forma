@@ -1,0 +1,31 @@
+# Host-only limits (/etc/forma/config.toml). The repository cannot change
+# these values. Keys are snake_case, as in materia's own config file; each can
+# be overridden with FORMA_<KEY>, using __ between nested keys
+# (for example FORMA_SELINUX__PRIORITY=350).
+
+[paths]
+# Absolute paths in the repository (Relabel, Store.Root, homes) must sit
+# under one of these roots.
+allowed_roots = ["/var/lib/forma", "/var/home", "/etc/moonshine"]
+
+[accounts]
+# System user and group IDs forma may allocate
+id_range = { start = 900, end = 999 }
+
+[selinux]
+allow_modules = true
+priority = 350
+
+[materia]
+config_file = "/etc/materia/config.toml"
+
+[notify.triggers]
+default = "https://hooks.example.invalid/forma"
+failure = "https://hooks.example.invalid/forma-alerts"
+
+[base_images]
+# respect: the host-wide /etc/containers/policy.json applies to every base
+# image pull, even though forma builds its own images with a generated policy.
+# ignore: base image pulls skip the host policy. Only settable here, never in
+# the repository.
+host_policy = "respect"

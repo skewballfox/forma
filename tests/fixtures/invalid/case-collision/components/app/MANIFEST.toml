@@ -1,0 +1,5 @@
+# Two keys that differ only by case are ambiguous. Forma rejects them rather
+# than pick one.
+[Forma.Account]
+Name = "app"
+name = "other"

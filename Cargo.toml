@@ -1,0 +1,43 @@
+[package]
+name = "forma"
+version.workspace = true
+edition.workspace = true
+description = "Builds, signs and stages local container images and the service accounts that run them, alongside materia"
+publish = false
+
+[workspace]
+resolver = "3"
+members = [".", "crates/user"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+cap-std = "4.0.3"
+nix = { version = "0.31.3", default-features = false }
+rustix = { version = "1.1.5", default-features = false, features = ["std"] }
+thiserror = "2.0.21"
+tracing = "0.1.44"
+# libudev bindings; needs libudev at build time (systemd-devel on Fedora).
+udev = "0.9.3"
+# 6.0 is three days old and drops the blocking API; stay on 5.x for now.
+zbus = { version = "5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
+
+# Test-only
+insta = "1.49.0"
+proptest = "1.12.0"
+rstest = "0.28.0"
+tempfile = "3.27.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+[lints]
+workspace = true
+
+[dependencies]

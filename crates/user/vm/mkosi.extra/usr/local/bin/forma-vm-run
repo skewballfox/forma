@@ -1,0 +1,18 @@
+#!/bin/sh
+# Runs the test binary shared from the host, records its exit status and
+# output in the writable share, and powers the guest off. The output also goes
+# to the console, so `just vm-test` shows it as the tests run.
+set -u
+out=/mnt/forma-out
+
+# The pipe hides the test binary's status, so the subshell writes it aside.
+(
+    status=0
+    "/mnt/forma-test/vm-tests" --ignored --test-threads=1 $(cat /mnt/forma-test/args) 2>&1 \
+        || status=$?
+    echo "$status" >"$out/exit-status.tmp"
+) | tee "$out/output" >/dev/console
+
+mv "$out/exit-status.tmp" "$out/exit-status"
+sync
+systemctl poweroff --force

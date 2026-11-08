@@ -1,0 +1,5 @@
+[Container]
+# Runs a forma image but leaves Pull at its default, so Podman would try to
+# pull it. Forma accounts must set Pull=never.
+Image=localhost/app/app:latest
+AutoUpdate=local

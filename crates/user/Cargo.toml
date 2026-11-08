@@ -1,0 +1,37 @@
+[package]
+name = "forma-user"
+version.workspace = true
+edition.workspace = true
+description = "Manages Linux users, groups, sub-ID ranges, udev rules and file permissions, with guards against breaking the host"
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+default = ["systemd"]
+# Everything that needs systemd: linger and login sessions through logind,
+# waiting for a user manager to stop, and modules-load.d files with
+# systemd-modules-load.service. Without it, the crate still manages
+# accounts, groups, sub-IDs, udev rules and permissions; account deletion
+# then relies on userdel refusing accounts with running processes.
+systemd = ["dep:zbus"]
+# Re-trigger every device in a subsystem through libudev. Without it, only
+# devices named by sysfs path can be triggered.
+udev-enumerate = ["dep:udev"]
+
+[dependencies]
+cap-std.workspace = true
+nix = { workspace = true, features = ["user"] }
+rustix = { workspace = true, features = ["fs", "process"] }
+thiserror.workspace = true
+tracing.workspace = true
+udev = { workspace = true, optional = true }
+zbus = { workspace = true, optional = true }
+
+[dev-dependencies]
+cap-std.workspace = true
+insta.workspace = true
+proptest.workspace = true
+rstest.workspace = true
+tempfile.workspace = true

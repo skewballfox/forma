@@ -1,0 +1,5 @@
+[[Forma.Images]]
+Tag = "app/app:latest"
+Containerfile = "build/Containerfile"
+Context = "build"
+# No BuildArgs value for BASE, and the ARG has no default

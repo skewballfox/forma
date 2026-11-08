@@ -1,0 +1,4 @@
+[[Forma.Images]]
+Tag = "app/app:latest"
+Containerfile = "build/Containerfile"
+Context = "build"

@@ -1,0 +1,61 @@
+# Materia runs these at the moments forma needs (docs/architecture.md 2.3).
+# Materia requires SetupScript and CleanupScript together.
+[Settings]
+SetupScript = "forma-apply.sh"
+PostScript = "forma-apply.sh"
+CleanupScript = "forma-revert.sh"
+
+[[Services]]
+Service = "moonshine.service"
+
+# No [Forma] table lists the images this component runs. Forma reads them
+# from Image= in moonshine.container, and the driver image from
+# nvidia-driver.volume in the nvidia-driver component.
+
+[Forma.Account]
+Name = "moonshine"
+Home = true
+Linger = true
+SubIds = 65536
+# Supplementary groups. Each must exist on the host already (render) or be
+# created by forma under [[Forma.Groups]] (moonshine-input). Forma never
+# creates, changes or removes a group it did not create.
+MemberOf = ["render", "moonshine-input"]
+
+# Groups forma creates. Removed when no installed component declares them.
+# /dev/uinput and /dev/uhid belong to this group, not to input.
+[[Forma.Groups]]
+Name = "moonshine-input"
+System = true
+
+[[Forma.Images]]
+Tag = "moonshine/moonshine:patches"
+Containerfile = "build/moonshine.Dockerfile"
+Context = "build"
+
+[Forma.Images.Source]
+Git = "https://github.com/skewballfox/moonshine.git"
+Ref = "patches"
+# Build argument that receives the resolved commit
+CommitArg = "MOONSHINE_COMMIT"
+
+[Forma.Images.Update]
+Schedule = "daily"
+Triggers = ["git-ref", "base-digest"]
+
+[[Forma.Images]]
+Tag = "moonshine/steam:latest"
+Containerfile = "build/steam.Dockerfile"
+Context = "build"
+# Built from the moonshine image, so it is rebuilt whenever that one is
+DependsOn = ["moonshine/moonshine:patches"]
+
+[Forma.SELinux]
+Modules = [
+  "selinux/moonshine.te",
+  "selinux/gpu_container.cil",
+  "selinux/moonshine_container.cil",
+]
+# udica templates loaded in the same transaction
+Templates = ["base_container", "net_container"]
+Relabel = ["/etc/moonshine"]

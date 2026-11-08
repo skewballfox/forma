@@ -1,0 +1,101 @@
+# Tests for forma-user that need root and a real system. They run in a VM,
+# never on the host; see PLAN.md section 10.3.
+#
+#   just vm-image         build the guest image (once, and when vm/ changes)
+#   just vm-test [FILTER] run the `#[ignore]`d tests in tests/vm in the guest
+#
+# Host packages (Fedora names): mkosi builds the image, distribution-gpg-keys
+# lets it verify Fedora's packages, and python3-pefile is what it uses to
+# install systemd-boot. mtools (mcopy) and dosfstools fill and format the FAT
+# EFI System Partition without mounting it. Also needed: systemd-vmspawn
+# (systemd-container), jq.
+# On an image-based host: rpm-ostree install mkosi distribution-gpg-keys python3-pefile mtools dosfstools
+#
+# This file is meant to be imported from the workspace justfile as a module,
+# so every path below starts from `source_directory()`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# `vm-env` writes `.env`, and just loads it for the next run.
+set dotenv-load
+
+crate := source_directory()
+vm := crate / "vm"
+image := env("FORMA_VM_IMAGE", vm / "mkosi.output" / "forma-user-test.raw")
+run := vm / "run"
+
+# Where mkosi is, from `.env`: run0 does not see the user's PATH. Empty until
+# `just vm-env` has run; `vm-image` checks.
+mkosi := env("MKOSI", "")
+
+# What starts the guest. Tests of this file replace it, and the image.
+vmspawn := env("FORMA_VMSPAWN", "systemd-vmspawn")
+
+# How long the guest may run before it is killed, in seconds.
+timeout := env("FORMA_VM_TIMEOUT", "900")
+
+# mkosi needs root to build the image: it works in a user namespace, and
+# secureblue's SELinux policy refuses those to unconfined users. The image is
+# root-owned and readable by wheel; `vm-test` copies it and runs only the VM as root.
+
+# Record where mkosi is, so run0 can find it
+vm-env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkosi=$(command -v mkosi) || { echo "mkosi is not on PATH" >&2; exit 1; }
+    printf 'MKOSI=%s\n' "$mkosi" > {{ quote(crate / ".env") }}
+
+# Build the guest image: Fedora with systemd, udev, shadow-utils and the vendor group the tests expect
+vm-image:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkosi={{ quote(mkosi) }}
+    [[ -n "$mkosi" ]] || { echo "MKOSI is not set; run: just vm-env" >&2; exit 1; }
+    # mkosi makes the output directory 750 and the image 640, both root's; vm-test
+    # reads the image as the user, so hand the group to wheel. Not world-readable.
+    # One run0 for the build and the permissions. --via-shell joins its arguments
+    # unquoted, so each command is quoted with printf %q and the lot goes in as one
+    # string.
+    dir={{ quote(parent_directory(image)) }}
+    script=$(printf '%q ' "$mkosi" --directory {{ quote(vm) }} --force build; printf '&& ')
+    script+=$(printf '%q ' chgrp wheel "$dir" {{ quote(image) }}; printf '&& ')
+    script+=$(printf '%q ' chmod 750 "$dir"; printf '&& ')
+    script+=$(printf '%q ' chmod 640 {{ quote(image) }})
+    run0 --via-shell "$script"
+    echo "built {{ image }}"
+
+# Everything after the recipe name is passed to the test binary as a filter.
+
+# Run the tests in tests/vm in a fresh copy of the guest image
+vm-test *filter:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ -f {{ quote(image) }} ]] || { echo "no image at {{ image }}; run: just vm-image" >&2; exit 1; }
+
+    # The test binary, found by asking cargo rather than guessing a path.
+    binary=$(cargo test --manifest-path {{ quote(crate / "Cargo.toml") }} --test vm --no-run \
+        --message-format=json-render-diagnostics \
+        | jq -r 'select(.reason == "compiler-artifact" and .profile.test == true and .target.name == "vm") | .executable' \
+        | tail -n 1)
+    [[ -x "$binary" ]] || { echo "cargo did not build the vm test binary" >&2; exit 1; }
+
+    # Stage what the guest shares as the user, so cargo's output never needs root.
+    stage={{ quote(run + ".new") }}
+    rm -rf "$stage"
+    mkdir -p "$stage"
+    cp --reflink=auto "$binary" "$stage/vm-tests"
+    printf '%s\n' {{ filter }} > "$stage/args"
+
+    # One run0 for everything that needs root; see vm/launch. The guest runs the
+    # binary, writes `exit-status` and `output` into `out`, and powers off. A guest
+    # that dies without writing a status fails the run below.
+    # run0 --via-shell joins its arguments with spaces and hands them to the login
+    # shell unquoted, so pass ONE string with the quoting already done (as corectl's
+    # common.just does).
+    cmd=$(printf '%q ' {{ quote(vm / "launch") }} \
+        {{ quote(run) }} "$stage" {{ quote(image) }} "$(id -u):$(id -g)" {{ timeout }} {{ vmspawn }})
+    run0 --via-shell "$cmd"
+
+    [[ -f {{ quote(run / "out" / "exit-status") }} ]] || { echo "the guest never reported a result" >&2; exit 1; }
+    status=$(<{{ quote(run / "out" / "exit-status") }})
+    [[ "$status" == 0 ]] || { echo "tests failed in the VM (exit status $status)" >&2; exit 1; }

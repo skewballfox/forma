@@ -1,0 +1,2 @@
+[Volume]
+# A plain volume, not Driver=image: forma finds no image here.

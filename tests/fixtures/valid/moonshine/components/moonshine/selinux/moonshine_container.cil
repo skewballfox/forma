@@ -1,0 +1,1 @@
+(block moonshine_container (blockinherit gpu_container))

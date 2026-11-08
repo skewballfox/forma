@@ -1,0 +1,11 @@
+[Hosts.forge]
+Components = ["app"]
+
+[Forma.BaseImages]
+# all: every base image needs a Trust entry, and docker.io has none
+Require = "all"
+
+[[Forma.BaseImages.Trust]]
+Scope = "registry.fedoraproject.org"
+Type = "sigstore-key"
+Key = "trust/fedora-registry.pub"

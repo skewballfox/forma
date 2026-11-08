@@ -1,0 +1,5 @@
+[Forma.Account]
+Name = "app"
+# MemberOf must name a group that already exists on the host, or that
+# another component creates under [[Forma.Groups]]
+MemberOf = ["no-such-group"]

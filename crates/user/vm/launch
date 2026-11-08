@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# The part of `just vm-test` that needs root: a fresh copy of the image, the VM,
+# and handing the result back to the user. Run through run0; see the justfile.
+#
+# usage: launch RUN STAGE IMAGE OWNER TIMEOUT VMSPAWN
+set -euo pipefail
+
+run=$1 stage=$2 image=$3 owner=$4 timeout=$5 vmspawn=$6
+
+# The last run's VM left root-owned state (the TPM) in `run`.
+rm -rf "$run"
+mkdir -p "$run/out"
+mv "$stage" "$run/share"
+cp --reflink=auto "$image" "$run/disk.raw"
+chmod u+w "$run/disk.raw"
+
+# --foreground: without it timeout puts vmspawn in a background process group,
+# and the first read from the console stops it (SIGTTIN) and the whole VM with it.
+timeout --foreground -k 10 "$timeout" "$vmspawn" \
+    --image="$run/disk.raw" \
+    --console=native \
+    --secure-boot=no \
+    --pass-ssh-key=no \
+    --ram=2G --cpus=2 \
+    --bind-ro="$run/share":/mnt/forma-test \
+    --bind="$run/out":/mnt/forma-out \
+    || echo "the VM stopped with status $?" >&2
+
+chown -R "$owner" "$run"

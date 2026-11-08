@@ -1,0 +1,5 @@
+[Volume]
+# A forma image used as a volume. Forma counts it as an image this
+# component runs.
+Driver=image
+Image=localhost/moonshine/nvidia-driver:latest

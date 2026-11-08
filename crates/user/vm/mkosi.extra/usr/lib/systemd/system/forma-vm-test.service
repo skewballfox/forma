@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the forma-user tests shared from the host
+After=local-fs.target systemd-udevd.service systemd-logind.service dbus.service
+ConditionPathIsMountPoint=/mnt/forma-out
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/forma-vm-run
+
+[Install]
+WantedBy=multi-user.target

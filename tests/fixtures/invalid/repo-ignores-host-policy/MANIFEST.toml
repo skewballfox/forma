@@ -1,0 +1,6 @@
+[Hosts.forge]
+Components = ["app"]
+
+[Forma.BaseImages]
+# Loosening the host policy is a host-only setting
+HostPolicy = "ignore"

@@ -1,0 +1,4 @@
+[Forma.Account]
+Name = "svc"
+# Differs from app's declaration
+Linger = false

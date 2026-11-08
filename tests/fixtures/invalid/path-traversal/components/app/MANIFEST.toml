@@ -1,0 +1,5 @@
+[[Forma.Images]]
+Tag = "app/app:latest"
+# Leaves the component directory
+Containerfile = "../../MANIFEST.toml"
+Context = "."

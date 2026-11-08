@@ -1,0 +1,26 @@
+[Unit]
+Description=Moonshine (fixture)
+Requires=nvidia-driver-volume.service moonshine-x11-volume.service moonshine-bus-proxy.service
+After=nvidia-driver-volume.service moonshine-x11-volume.service moonshine-bus-proxy.service
+
+[Container]
+# A forma image: forma loads it into the moonshine account's storage.
+Image=localhost/moonshine/moonshine:patches
+# Lets podman auto-update restart this container when forma loads a new image.
+AutoUpdate=local
+# Forma accounts never pull. A missing image fails instead.
+Pull=never
+Network=host
+UserNS=keep-id:uid=1000,gid=1000
+GroupAdd=keep-groups
+DropCapability=ALL
+NoNewPrivileges=true
+SecurityLabelType=moonshine_container.process
+Volume=nvidia-driver.volume:/usr/nvidia:ro
+Volume=moonshine-x11.volume:/tmp/.X11-unix
+# Moonshine starts Steam through the user manager, but only through the proxy.
+Volume=moonshine-bus.volume:/run/moonshine-bus
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/moonshine-bus/bus
+
+# Reserved for per-container forma settings. Version 1 defines none.
+[X-Forma]

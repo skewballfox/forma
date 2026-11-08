@@ -1,0 +1,39 @@
+# Materia runs these at the moments forma needs (docs/architecture.md 2.3).
+# Materia requires SetupScript and CleanupScript together.
+[Settings]
+SetupScript = "forma-apply.sh"
+PostScript = "forma-apply.sh"
+CleanupScript = "forma-revert.sh"
+
+[[Services]]
+Service = "nvidia-driver-volume.service"
+Oneshot = true
+
+# Same account as the moonshine component: both declarations must match
+# exactly. The ledger records both components as needing it, and keeps it
+# until neither is installed.
+[Forma.Account]
+Name = "moonshine"
+Home = true
+Linger = true
+SubIds = 65536
+# Supplementary groups. Each must exist on the host already (render) or be
+# created by forma under [[Forma.Groups]] (moonshine-input). Forma never
+# creates, changes or removes a group it did not create.
+MemberOf = ["render", "moonshine-input"]
+
+# Groups forma creates. Removed when no installed component declares them.
+# /dev/uinput and /dev/uhid belong to this group, not to input.
+[[Forma.Groups]]
+Name = "moonshine-input"
+System = true
+
+[[Forma.Images]]
+Tag = "moonshine/nvidia-driver:latest"
+Containerfile = "build/nvidia-driver.Dockerfile"
+Context = "build"
+BuildArgs = { NV_VERSION = "580.95.05" }
+
+[Forma.Images.Update]
+Schedule = "weekly"
+Triggers = ["base-digest"]

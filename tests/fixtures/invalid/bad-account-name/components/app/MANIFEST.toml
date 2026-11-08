@@ -1,0 +1,3 @@
+[Forma.Account]
+# Upper case and a space: not a valid system user name
+Name = "Bad User"
