@@ -156,8 +156,16 @@ pub struct Marker {
 
 impl Marker {
     fn claims_user(&self, user: &User) -> bool {
-        user.comment().contains(&self.tag.comment_marker())
+        comment_has_marker(user.comment(), &self.tag.comment_marker())
     }
+}
+
+/// Whether `marker` is one of the words of `comment`. A substring test would
+/// let the tag `forma` claim an account marked `managed-by=forma2`.
+fn comment_has_marker(comment: &str, marker: &str) -> bool {
+    comment
+        .split(|ch: char| ch.is_whitespace() || ch == ',')
+        .any(|word| word == marker)
 }
 
 impl Ownership for Marker {
@@ -380,5 +388,25 @@ impl Journal for NoJournal {
 
     fn applied(&mut self, _change: &Change, _facts: &Facts) -> Result<(), Self::Error> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::comment_has_marker;
+
+    #[test]
+    fn the_marker_is_found_as_a_whole_word() {
+        assert!(comment_has_marker("managed-by=forma", "managed-by=forma"));
+        assert!(comment_has_marker("created by a test managed-by=forma", "managed-by=forma"));
+        assert!(comment_has_marker("Full Name,,,,managed-by=forma", "managed-by=forma"));
+    }
+
+    #[test]
+    fn a_longer_tag_or_a_missing_marker_is_not_a_match() {
+        assert!(!comment_has_marker("managed-by=forma2", "managed-by=forma"));
+        assert!(!comment_has_marker("managed-by=forma-x", "managed-by=forma"));
+        assert!(!comment_has_marker("xmanaged-by=forma", "managed-by=forma"));
+        assert!(!comment_has_marker("", "managed-by=forma"));
     }
 }

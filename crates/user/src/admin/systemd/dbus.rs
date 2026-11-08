@@ -26,6 +26,7 @@ trait LoginManager {
     fn set_user_linger(&self, uid: u32, enable: bool, interactive: bool) -> zbus::Result<()>;
     fn terminate_user(&self, uid: u32) -> zbus::Result<()>;
     fn list_sessions(&self) -> zbus::Result<Vec<SessionRow>>;
+    fn get_user(&self, uid: u32) -> zbus::Result<OwnedObjectPath>;
 }
 
 #[zbus::proxy(
@@ -153,6 +154,22 @@ pub(crate) fn unit_state(bus: &Connection, unit: &str) -> Result<Option<String>,
         Ok(state) => Ok(Some(state)),
         Err(error) if is_error(&error, "org.freedesktop.DBus.Error.UnknownObject") => Ok(None),
         Err(source) => Err(Error::bus(format!("read the state of {unit}"), source)),
+    }
+}
+
+/// Waits until logind has dropped its record of the account. logind does that
+/// when it sees the user's slice go, a moment after the units are inactive. An
+/// account made in that moment, on the same user ID, gets a slice and a runtime
+/// directory but no user manager.
+pub(crate) fn wait_user_gone(bus: &Connection, uid: u32, timeout: Duration) -> Result<(), Error> {
+    let started = Instant::now();
+    loop {
+        match login(bus)?.get_user(uid) {
+            Err(error) if is_error(&error, "org.freedesktop.login1.NoSuchUser") => return Ok(()),
+            Err(source) => return Err(Error::bus(format!("look up user ID {uid} in logind"), source)),
+            Ok(_) if started.elapsed() < timeout => std::thread::sleep(POLL),
+            Ok(_) => return Err(Error::Timeout(format!("logind to drop user ID {uid}"))),
+        }
     }
 }
 

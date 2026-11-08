@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use forma_user::admin;
 use forma_user::lookup::{self, User};
-use forma_user::spec::{DeleteOptions, HomePolicy, SessionPolicy, UidChoice, UserSpec};
+use forma_user::spec::{DeleteOptions, HomePolicy, SessionPolicy};
 use forma_user::systemd;
 
 use crate::common;
@@ -21,24 +21,53 @@ fn manager_active(user: &User) -> bool {
 fn wait_for_manager(user: &User) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !manager_active(user) {
-        assert!(Instant::now() < deadline, "the user manager of {} did not start", user.name());
+        assert!(
+            Instant::now() < deadline,
+            "the user manager of {} did not start\n{}",
+            user.name(),
+            manager_report(user),
+        );
         std::thread::sleep(Duration::from_millis(200));
+    }
+}
+
+/// What systemd and logind say about an account's user manager, for the message
+/// of a test that timed out waiting for it.
+fn manager_report(user: &User) -> String {
+    let uid = user.uid();
+    let units = [
+        format!("user@{uid}.service"),
+        format!("user-runtime-dir@{uid}.service"),
+        format!("user-{uid}.slice"),
+    ];
+    let mut report = format!("uid {uid}\n");
+    for unit in &units {
+        report += &capture("/usr/bin/systemctl", &["status", "--no-pager", "--full", unit]);
+        report += &capture("/usr/bin/journalctl", &["--no-pager", "-n", "30", "-u", unit]);
+    }
+    report += &capture("/usr/bin/loginctl", &["list-users", "--no-pager"]);
+    report += &capture("/usr/bin/loginctl", &["show-user", &uid.to_string(), "--no-pager"]);
+    report
+}
+
+/// Runs a program and returns what it printed with a heading. A failure is part
+/// of the report, not a panic.
+fn capture(program: &str, args: &[&str]) -> String {
+    match Command::new(program).args(args).output() {
+        Ok(output) => format!(
+            "$ {program} {}\n{}{}\n",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        ),
+        Err(error) => format!("$ {program} {}\ncannot run: {error}\n", args.join(" ")),
     }
 }
 
 vm_test! {
     fn linger_turns_on_and_off_and_a_second_call_changes_nothing() {
         let mut system = common::marker_system();
-        // Not the ID `useradd` hands out next. The delete test below frees that one,
-        // and a new account on the ID of a user manager that has just stopped can
-        // wait on the old one's leftovers.
-        let range = system.login_defs().sys_uid;
-        let id = common::free_system_id_except(range, Some(common::free_system_id(range)));
-        let spec = UserSpec {
-            uid: UidChoice::Fixed(common::system_uid(id, range)),
-            ..common::user_spec("ftlinger")
-        };
-        let user = admin::user::create(&mut system, &spec).unwrap();
+        let user = admin::user::create(&mut system, &common::user_spec("ftlinger")).unwrap();
         assert!(!systemd::linger(&user).unwrap());
 
         assert!(admin::systemd::linger::set(&mut system, &user, true).unwrap());

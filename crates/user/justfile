@@ -66,8 +66,9 @@ vm-image:
 
 # Everything after the recipe name is passed to the test binary as a filter.
 
-# Run the tests in tests/vm in a fresh copy of the guest image
-vm-test *filter:
+# Run the tests in tests/vm in a fresh copy of the guest image; --debug also streams the guest's journal
+[arg('debug', long="debug", value="true")]
+vm-test debug="false" *filter:
     #!/usr/bin/env bash
     set -euo pipefail
     [[ -f {{ quote(image) }} ]] || { echo "no image at {{ image }}; run: just vm-image" >&2; exit 1; }
@@ -85,6 +86,8 @@ vm-test *filter:
     mkdir -p "$stage"
     cp --reflink=auto "$binary" "$stage/vm-tests"
     printf '%s\n' {{ filter }} > "$stage/args"
+    # The guest streams its journal to the console when this file is there.
+    [[ {{ debug }} == true ]] && touch "$stage/debug"
 
     # One run0 for everything that needs root; see vm/launch. The guest runs the
     # binary, writes `exit-status` and `output` into `out`, and powers off. A guest

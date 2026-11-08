@@ -25,7 +25,10 @@ pub(crate) fn login_sessions(user: &User) -> Result<Vec<String>, SystemdError> {
 }
 
 /// Turns linger off, ends the account's sessions, and waits for its user
-/// manager to stop.
+/// manager, runtime directory and slice to stop, and for logind to forget the
+/// account. logind stops the runtime directory and slice after the manager and
+/// drops its record last, and an account that reuses the ID must not start
+/// while any of that is still going on.
 pub(crate) fn stop_user_manager(user: &User, timeout: Duration) -> Result<(), super::Error> {
     let bus = bus()?;
     let uid = user.uid().as_raw();
@@ -33,7 +36,14 @@ pub(crate) fn stop_user_manager(user: &User, timeout: Duration) -> Result<(), su
         dbus::set_linger(&bus, uid, false)?;
     }
     dbus::terminate_user(&bus, uid)?;
-    dbus::wait_stopped(&bus, &format!("user@{uid}.service"), timeout)?;
+    for unit in [
+        format!("user@{uid}.service"),
+        format!("user-runtime-dir@{uid}.service"),
+        format!("user-{uid}.slice"),
+    ] {
+        dbus::wait_stopped(&bus, &unit, timeout)?;
+    }
+    dbus::wait_user_gone(&bus, uid, timeout)?;
     Ok(())
 }
 

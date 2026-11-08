@@ -2,8 +2,17 @@
 # Runs the test binary shared from the host, records its exit status and
 # output in the writable share, and powers the guest off. The output also goes
 # to the console, so `just vm-test` shows it as the tests run.
+#
+# The boot is quiet. With a `debug` file in the share (`just vm-test --debug`)
+# the journal goes to the console too, from the start of the boot.
 set -u
 out=/mnt/forma-out
+
+journal=
+if [ -e /mnt/forma-test/debug ]; then
+    journalctl --boot --follow --no-pager --output=short-monotonic >/dev/console 2>&1 &
+    journal=$!
+fi
 
 # The pipe hides the test binary's status, so the subshell writes it aside.
 (
@@ -14,5 +23,10 @@ out=/mnt/forma-out
 ) | tee "$out/output" >/dev/console
 
 mv "$out/exit-status.tmp" "$out/exit-status"
+if [ -n "$journal" ]; then
+    # Let the last messages reach the console before the guest goes down.
+    sleep 1
+    kill "$journal"
+fi
 sync
 systemctl poweroff --force
