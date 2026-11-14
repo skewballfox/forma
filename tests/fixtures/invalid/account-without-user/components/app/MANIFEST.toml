@@ -1,0 +1,4 @@
+# No [Settings] User: materia would install the Quadlets itself, as root, and
+# the account forma creates would run nothing.
+[Forma.Account]
+Name = "app"

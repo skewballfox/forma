@@ -1,0 +1,9 @@
+[Settings]
+
+[[Services]]
+  Service = "moonshine.service"
+  Type = ""
+  State = ""
+  Oneshot = false
+  Disabled = false
+  Timeout = 0

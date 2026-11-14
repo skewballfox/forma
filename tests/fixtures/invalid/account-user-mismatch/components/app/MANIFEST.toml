@@ -1,0 +1,7 @@
+# Materia hands the component to "other", but forma would prepare "app".
+# The two must name the same account.
+[Settings]
+User = "other"
+
+[Forma.Account]
+Name = "app"

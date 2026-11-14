@@ -1,6 +1,10 @@
-# Materia runs these at the moments forma needs (docs/architecture.md 2.3).
-# Materia requires SetupScript and CleanupScript together.
+# User hands the component to the materia of that account, so its containers
+# run rootless (docs/architecture.md 2.4). It must equal [Forma.Account] Name.
+# The scripts still run as root: materia runs them at the moments forma needs
+# (docs/architecture.md 2.3), and requires SetupScript and CleanupScript
+# together.
 [Settings]
+User = "moonshine"
 SetupScript = "forma-apply.sh"
 PostScript = "forma-apply.sh"
 CleanupScript = "forma-revert.sh"

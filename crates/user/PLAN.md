@@ -1,7 +1,9 @@
 # `forma-user` plan
 
 Status: **in progress.** Sections 4.1, 4.2 and 4.4 to 4.8 are implemented,
-without tests. Vendor groups (4.3) wait on question U3, and
+with the virtual machine tests in `tests/vm/` (section 10.3). Most unit
+tests (10.1) are not written.
+Vendor groups (4.3) wait on question U3, and
 `trigger_subsystem` (feature `udev-enumerate`) is not written yet.
 
 ## About this document
@@ -16,8 +18,7 @@ operations, how it runs external tools, and how we test it.
 
 **How it relates to `docs/architecture.md`.** This document sits under
 the architecture plan. That plan keeps a short summary of this crate
-(section 5.10) and links here for the details. This crate replaced the
-plan's earlier `forma-identity` library.
+(section 5.10) and links here for the details.
 
 ### Terms used in this document
 

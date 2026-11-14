@@ -1,3 +1,6 @@
+[Settings]
+User = "svc"
+
 [Forma.Account]
 Name = "svc"
 Linger = true

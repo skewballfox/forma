@@ -1,0 +1,5 @@
+[Hosts]
+  [Hosts.all]
+    Components = ["moonshine", "nvidia-driver"]
+  [Hosts.forge]
+    Roles = ["streaming"]

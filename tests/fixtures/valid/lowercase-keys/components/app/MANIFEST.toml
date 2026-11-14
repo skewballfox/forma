@@ -1,3 +1,6 @@
 # Materia accepts any case, and so does forma
+[settings]
+user = "app"
+
 [forma.account]
 name = "app"

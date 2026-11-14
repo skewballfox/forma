@@ -1,0 +1,9 @@
+[Settings]
+
+[[Services]]
+  Service = "nvidia-driver-volume.service"
+  Type = ""
+  State = ""
+  Oneshot = true
+  Disabled = false
+  Timeout = 0

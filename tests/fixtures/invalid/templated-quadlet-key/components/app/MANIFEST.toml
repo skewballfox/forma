@@ -1,0 +1,8 @@
+[Settings]
+User = "app"
+
+[Defaults]
+image = "localhost/app/app:latest"
+
+[Forma.Account]
+Name = "app"

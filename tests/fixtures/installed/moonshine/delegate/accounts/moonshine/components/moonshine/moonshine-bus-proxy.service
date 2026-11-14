@@ -1,7 +1,7 @@
 # A plain user unit, not a Quadlet. Filters moonshine's D-Bus calls to the
-# account's user manager (from corectl's moonshine). Under materia option S it
-# goes to /etc/systemd/user/ with a ConditionUser= drop-in
-# (docs/proposed_materia_changes.md, F12).
+# account's user manager (from corectl's moonshine). The account's own materia
+# installs it in the account's user-unit directory, next to the Quadlets
+# (docs/architecture.md 2.4).
 [Unit]
 Description=Filtering D-Bus proxy for moonshine (fixture)
 Requires=moonshine-bus-volume.service
