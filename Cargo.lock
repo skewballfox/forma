@@ -425,6 +425,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "forma-ledger"
+version = "0.1.0"
+dependencies = [
+ "forma-user",
+ "serde",
+ "tempfile",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
 name = "forma-quadlet"
 version = "0.1.0"
 dependencies = [

@@ -7,7 +7,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [".", "crates/config", "crates/quadlet", "crates/user"]
+members = [".", "crates/config", "crates/ledger", "crates/quadlet", "crates/user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,11 +15,13 @@ edition = "2024"
 
 [workspace.dependencies]
 forma-config = { path = "crates/config" }
+forma-ledger = { path = "crates/ledger" }
 forma-quadlet = { path = "crates/quadlet" }
 forma-user = { path = "crates/user", default-features = false }
 
 cap-std = "4.0.3"
 nix = { version = "0.31.3", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }
 rustix = { version = "1.1.5", default-features = false, features = ["std"] }
 thiserror = "2.0.21"
 toml = "1.2.0"
