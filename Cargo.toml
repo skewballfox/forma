@@ -7,7 +7,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [".", "crates/config", "crates/ledger", "crates/quadlet", "crates/user"]
+members = [".", "crates/config", "crates/ledger", "crates/privilege", "crates/process", "crates/quadlet", "crates/user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -16,10 +16,13 @@ edition = "2024"
 [workspace.dependencies]
 forma-config = { path = "crates/config" }
 forma-ledger = { path = "crates/ledger" }
+forma-privilege = { path = "crates/privilege" }
+forma-process = { path = "crates/process" }
 forma-quadlet = { path = "crates/quadlet" }
 forma-user = { path = "crates/user", default-features = false }
 
 cap-std = "4.0.3"
+caps = "0.5.6"
 nix = { version = "0.31.3", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 rustix = { version = "1.1.5", default-features = false, features = ["std"] }
@@ -28,6 +31,7 @@ toml = "1.2.0"
 tracing = "0.1.44"
 # libudev bindings; needs libudev at build time (systemd-devel on Fedora).
 udev = "0.9.3"
+zeroize = "1.9.1"
 # 6.0 is three days old and drops the blocking API; stay on 5.x for now.
 zbus = { version = "5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
 

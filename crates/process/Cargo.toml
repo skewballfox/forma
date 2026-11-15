@@ -1,0 +1,13 @@
+[package]
+name = "forma-process"
+version.workspace = true
+edition.workspace = true
+description = "Runs external tools for forma: argument vectors only, a cleared environment, typed errors, and no secret on a command line"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror.workspace = true
+zeroize.workspace = true

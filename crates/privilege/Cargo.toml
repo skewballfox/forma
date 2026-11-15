@@ -1,0 +1,13 @@
+[package]
+name = "forma-privilege"
+version.workspace = true
+edition.workspace = true
+description = "Capability tokens for forma's privileged code, and the drop of every capability a run does not need"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+caps.workspace = true
+thiserror.workspace = true
