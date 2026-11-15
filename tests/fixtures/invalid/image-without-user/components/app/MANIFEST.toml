@@ -1,0 +1,6 @@
+# No [Settings] User: root materia installs this component itself, so it has
+# no service account to run the image and no staged copy to build it from.
+[[Forma.Images]]
+Tag = "app/app:latest"
+Containerfile = "build/Containerfile"
+Context = "build"

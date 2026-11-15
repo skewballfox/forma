@@ -582,6 +582,13 @@ fn check_images(config: &Config, errors: &mut Vec<ManifestError>) {
     let mut first: BTreeMap<String, (&Component, &Located<Image>)> = BTreeMap::new();
     for component in &config.components {
         for image in &component.forma.images {
+            if component.user.is_none() {
+                errors.push(ManifestError::ImageWithoutUser {
+                    at: image.at.clone(),
+                    component: component.name.to_string(),
+                    image: image.value.tag.to_string(),
+                });
+            }
             // Two tags that give one directory name would share a store directory.
             match first.get(&image.value.tag.dir_name()) {
                 None => {

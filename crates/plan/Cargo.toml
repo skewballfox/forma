@@ -13,6 +13,7 @@ workspace = true
 test-support = []
 
 [dependencies]
+forma-build.workspace = true
 forma-config.workspace = true
 forma-ledger.workspace = true
 forma-privilege.workspace = true

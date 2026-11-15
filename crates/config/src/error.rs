@@ -247,6 +247,22 @@ pub enum ManifestError {
         /// The circle.
         cycle: Vec<String>,
     },
+    /// A component that does not set `[Settings] User` declares an image.
+    /// Forma builds images only for dedicated service accounts, and reads
+    /// the Containerfile from the component's staged copy, which only a
+    /// delegated component has.
+    #[error(
+        "{at}: component {component} declares image {image}, but sets no [Settings] User; \
+         forma builds images only for components delegated to a service account"
+    )]
+    ImageWithoutUser {
+        /// The declaration.
+        at: Origin,
+        /// The component.
+        component: String,
+        /// The image.
+        image: String,
+    },
     /// A component declares the builder's or the signer's account as its own.
     #[error("{at}: account {account} is forma's {role} account; a component cannot use it")]
     ReservedAccount {
@@ -311,6 +327,7 @@ impl ManifestError {
             Self::MemberGroupMissing { .. } => "MemberGroupMissing",
             Self::UnknownImageDependency { .. } => "UnknownImageDependency",
             Self::ImageDependencyCycle { .. } => "ImageDependencyCycle",
+            Self::ImageWithoutUser { .. } => "ImageWithoutUser",
             Self::ReservedAccount { .. } => "ReservedAccount",
             Self::SeLinuxModulesNotAllowed { .. } => "SeLinuxModulesNotAllowed",
         }

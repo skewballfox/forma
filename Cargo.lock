@@ -702,6 +702,7 @@ dependencies = [
 name = "forma-plan"
 version = "0.1.0"
 dependencies = [
+ "forma-build",
  "forma-config",
  "forma-ledger",
  "forma-plan",

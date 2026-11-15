@@ -579,8 +579,13 @@ fn repository_plan(repository: &Path) -> Plan {
 }
 
 #[test]
-fn the_fixtures_that_break_a_unit_rule_stop_the_plan() {
-    for fixture in ["pull-allowed", "templated-quadlet-key"] {
+fn the_fixtures_that_break_a_unit_or_base_image_rule_stop_the_plan() {
+    for fixture in [
+        "pull-allowed",
+        "templated-quadlet-key",
+        "unresolved-base-arg",
+        "require-all-unlisted",
+    ] {
         let directory = fixtures().join("invalid").join(fixture);
         let expected = std::fs::read_to_string(directory.join("EXPECTED_ERROR")).unwrap();
         let plan = repository_plan(&directory);

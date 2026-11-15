@@ -43,6 +43,7 @@ const CONFIG_ERRORS: &[&str] = &[
     "PathEscapesComponent",
     "HostOnlySetting",
     "MemberGroupMissing",
+    "ImageWithoutUser",
 ];
 
 #[test]
@@ -74,7 +75,7 @@ fn every_invalid_fixture_fails_with_the_error_it_names() {
             );
         }
     }
-    assert_eq!(checked, 8, "every fixture that names a forma-config error was run");
+    assert_eq!(checked, 9, "every fixture that names a forma-config error was run");
 }
 
 #[test]

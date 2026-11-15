@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use forma_build::BaseError;
 use forma_config::types::{ImageRef, SigningBackend};
 use forma_config::{Config, HostConfig, MateriaConfig, ModuleKind, Skipped};
 use forma_ledger::{HOST, Item, Status, Store};
@@ -88,6 +89,18 @@ pub enum Problem {
         /// The rule and where it is broken.
         finding: Finding,
     },
+    /// An image's Containerfile names a base forma cannot pull, or must not
+    /// (architecture 5.6, "How forma pulls base images").
+    BaseImage {
+        /// The component.
+        component: String,
+        /// The image.
+        image: String,
+        /// The Containerfile, in the component's staged copy.
+        containerfile: PathBuf,
+        /// What is wrong.
+        error: BaseError,
+    },
     /// A component's staged copy could not be read.
     StagedUnreadable {
         /// The component.
@@ -107,6 +120,7 @@ impl Problem {
             Self::LedgerMismatch { .. } => "LedgerMismatch",
             Self::Unsettled { .. } => "Unsettled",
             Self::Unit { finding, .. } => finding.code.as_str(),
+            Self::BaseImage { error, .. } => error.code(),
             Self::StagedUnreadable { .. } => "StagedUnreadable",
         }
     }
@@ -131,6 +145,16 @@ impl fmt::Display for Problem {
                 )
             }
             Self::Unit { component, finding } => write!(f, "component {component}: {finding}"),
+            Self::BaseImage {
+                component,
+                image,
+                containerfile,
+                error,
+            } => write!(
+                f,
+                "component {component}, image {image}: {}: {error}",
+                containerfile.display()
+            ),
             Self::StagedUnreadable { component, reason } => {
                 write!(f, "component {component}: its staged copy cannot be read: {reason}")
             }
@@ -739,6 +763,40 @@ fn check_units(request: &Request<'_>, plan: &mut Plan) {
     }
 }
 
+/// Reads each image's Containerfile from the component's staged copy and
+/// checks the bases it names. Only a delegated component has a staged copy,
+/// and `forma-config` refuses images on any other (`ImageWithoutUser`).
+/// A component materia has not staged yet is reported by [`check_units`].
+fn check_images(request: &Request<'_>, plan: &mut Plan) {
+    for used in request.config.images() {
+        let Some(staged) = &used.component.staged else {
+            continue;
+        };
+        let image = &used.image.value;
+        let containerfile = image.containerfile.under(staged);
+        let text = match std::fs::read_to_string(&containerfile) {
+            Ok(text) => text,
+            Err(error) => {
+                plan.problems.push(Problem::StagedUnreadable {
+                    component: used.component.name.to_string(),
+                    reason: format!("{}: {error}", containerfile.display()),
+                });
+                continue;
+            }
+        };
+        let checked = forma_build::bases(&text, &image.build_args)
+            .and_then(|bases| forma_build::require_trust(&bases, &used.component.base_images));
+        for error in checked.err().unwrap_or_default() {
+            plan.problems.push(Problem::BaseImage {
+                component: used.component.name.to_string(),
+                image: image.tag.short().to_owned(),
+                containerfile: containerfile.clone(),
+                error,
+            });
+        }
+    }
+}
+
 /// The accounts no run may remove: those a component names in its
 /// `.component_version`, installed or not (delegation 9).
 fn protected_accounts(request: &Request<'_>, leaving: Option<&str>) -> BTreeMap<String, String> {
@@ -823,6 +881,7 @@ pub fn plan(request: &Request<'_>, ledger: &Store, host: &dyn HostView) -> Plan 
     match request.scope {
         Scope::Apply { component, prune } => {
             check_units(request, &mut plan);
+            check_images(request, &mut plan);
             let wants = wants(request, host, &mut plan.warnings);
             for step in &wants.list {
                 // One component's run acts for that component and for the host.
