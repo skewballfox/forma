@@ -1,0 +1,26 @@
+[package]
+name = "forma-plan"
+version.workspace = true
+edition.workspace = true
+description = "Turns forma's checked configuration, its ledger and a read-only view of the host into an ordered list of actions"
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+# An in-memory host for tests in this workspace.
+test-support = []
+
+[dependencies]
+forma-config.workspace = true
+forma-ledger.workspace = true
+forma-privilege.workspace = true
+forma-quadlet.workspace = true
+forma-user.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+forma-config = { workspace = true, features = ["test-support"] }
+forma-plan = { path = ".", features = ["test-support"] }
+insta.workspace = true

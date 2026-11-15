@@ -445,6 +445,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "forma-plan"
+version = "0.1.0"
+dependencies = [
+ "forma-config",
+ "forma-ledger",
+ "forma-plan",
+ "forma-privilege",
+ "forma-quadlet",
+ "forma-user",
+ "insta",
+ "thiserror",
+]
+
+[[package]]
 name = "forma-privilege"
 version = "0.1.0"
 dependencies = [

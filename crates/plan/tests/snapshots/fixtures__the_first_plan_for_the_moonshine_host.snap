@@ -1,0 +1,39 @@
+---
+source: crates/plan/tests/fixtures.rs
+expression: steps_only(&plan)
+---
+Plan:
+1. (forma) Create Group forma-consumers [privileged: CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+2. (moonshine, nvidia-driver) Create Group moonshine-input [privileged: CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+3. (forma) Create User forma-build (home /var/home/forma-build) [privileged: CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+4. (forma) Create User forma-sign (home /var/home/forma-sign) (groups tss) [privileged: CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+5. (moonshine, nvidia-driver) Create User moonshine (home /var/home/moonshine) (groups moonshine-input, render, forma-consumers) [privileged: CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+6. (forma) Add SubIds forma-build (65536) [privileged: CAP_DAC_OVERRIDE]
+7. (moonshine, nvidia-driver) Add SubIds moonshine (65536) [privileged: CAP_DAC_OVERRIDE]
+8. (moonshine, nvidia-driver) Write File /etc/systemd/user/forma-materia.service
+9. (moonshine, nvidia-driver) Write File /etc/systemd/user/forma-load.path
+10. (moonshine, nvidia-driver) Write File /etc/systemd/user/forma-load.service
+11. (moonshine, nvidia-driver) Write File /etc/systemd/user/default.target.wants/forma-materia.service
+12. (moonshine, nvidia-driver) Write File /etc/systemd/user/default.target.wants/forma-load.path
+13. (moonshine, nvidia-driver) Write File /etc/forma/materia/moonshine.toml
+14. (moonshine, nvidia-driver) Create Directory /var/home/moonshine/.config (moonshine:moonshine 0700) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+15. (moonshine, nvidia-driver) Create Directory /var/home/moonshine/.config/containers (moonshine:moonshine 0700) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+16. (forma) Enable Linger forma-build
+17. (moonshine, nvidia-driver) Enable Linger moonshine
+18. (forma) Create Directory /var/lib/forma/store (root:root 0700) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+19. (forma) Create Directory /var/lib/forma/staging (root:root 0755) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+20. (moonshine, nvidia-driver) Set Group /var/lib/materia/delegate/accounts/moonshine (moonshine) [privileged: CAP_CHOWN]
+21. (moonshine, nvidia-driver) Create Directory /var/lib/forma/store/moonshine (forma-sign:moonshine 2750) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+22. (moonshine, nvidia-driver) Create Directory /var/home/moonshine/.config/containers/containers.conf.d (root:root 0755) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+23. (moonshine) Create Directory /var/lib/forma/staging/moonshine_moonshine_patches (forma-build:forma-sign 2750) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+24. (moonshine) Create Directory /var/lib/forma/staging/moonshine_steam_latest (forma-build:forma-sign 2750) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+25. (nvidia-driver) Create Directory /var/lib/forma/staging/moonshine_nvidia-driver_latest (forma-build:forma-sign 2750) [privileged: CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]
+26. (forma) Grant Traverse /var/lib/forma/store (forma-sign) [privileged: CAP_FOWNER]
+27. (moonshine, nvidia-driver) Grant Traverse /var/lib/forma/store (moonshine) [privileged: CAP_FOWNER]
+28. (moonshine, nvidia-driver) Write File /var/home/moonshine/.config/containers/policy.json [privileged: CAP_DAC_OVERRIDE]
+29. (moonshine, nvidia-driver) Write File /var/home/moonshine/.config/containers/containers.conf [privileged: CAP_DAC_OVERRIDE]
+30. (moonshine, nvidia-driver) Map SELinux Login moonshine (user_u) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
+31. (moonshine) Install SELinux Module moonshine (priority 350) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
+32. (moonshine) Install SELinux Module gpu_container (priority 350) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
+33. (moonshine) Install SELinux Module moonshine_container (priority 350) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
+34. (moonshine, nvidia-driver) Wait For Socket moonshine

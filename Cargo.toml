@@ -7,7 +7,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [".", "crates/config", "crates/ledger", "crates/privilege", "crates/process", "crates/quadlet", "crates/user"]
+members = [".", "crates/config", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -16,6 +16,7 @@ edition = "2024"
 [workspace.dependencies]
 forma-config = { path = "crates/config" }
 forma-ledger = { path = "crates/ledger" }
+forma-plan = { path = "crates/plan" }
 forma-privilege = { path = "crates/privilege" }
 forma-process = { path = "crates/process" }
 forma-quadlet = { path = "crates/quadlet" }
