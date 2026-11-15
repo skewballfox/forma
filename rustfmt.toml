@@ -1,0 +1,3 @@
+# New crates are formatted with `cargo fmt -p <crate>` at this width. forma-user
+# predates this file and is not reformatted.
+max_width = 120

@@ -1,0 +1,23 @@
+[package]
+name = "forma-config"
+version.workspace = true
+edition.workspace = true
+description = "Reads and checks forma's manifest extension, its host configuration, and what materia installed"
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+# Builds the input for `load` from a repository tree, as the fixtures in
+# tests/fixtures are laid out. For tests in this workspace only.
+test-support = []
+
+[dependencies]
+forma-user.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+forma-config = { path = ".", features = ["test-support"] }
+tempfile.workspace = true
