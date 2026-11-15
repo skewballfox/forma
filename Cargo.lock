@@ -667,6 +667,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "forma-build"
+version = "0.1.0"
+dependencies = [
+ "forma-config",
+ "forma-signing-trust",
+ "forma-user",
+ "thiserror",
+]
+
+[[package]]
 name = "forma-config"
 version = "0.1.0"
 dependencies = [

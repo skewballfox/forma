@@ -1,0 +1,18 @@
+[package]
+name = "forma-build"
+version.workspace = true
+edition.workspace = true
+description = "Reads Containerfiles for forma: the base images a build pulls, and the heredoc rewrite for chroot isolation"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+forma-config.workspace = true
+forma-signing-trust.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+forma-config = { workspace = true, features = ["test-support"] }
+forma-user.workspace = true
