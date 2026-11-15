@@ -22,9 +22,12 @@ forma-process = { path = "crates/process" }
 forma-quadlet = { path = "crates/quadlet" }
 forma-user = { path = "crates/user", default-features = false }
 
+anyhow = "1.0.104"
 cap-std = "4.0.3"
+clap = { version = "4.6.7", features = ["derive"] }
 caps = "0.5.6"
 nix = { version = "0.31.3", default-features = false }
+serde_json = "1.0.154"
 serde = { version = "1.0.229", features = ["derive"] }
 rustix = { version = "1.1.5", default-features = false, features = ["std"] }
 thiserror = "2.0.21"
@@ -53,3 +56,15 @@ pedantic = { level = "warn", priority = -1 }
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
+cap-std.workspace = true
+clap.workspace = true
+forma-config.workspace = true
+forma-ledger.workspace = true
+forma-plan.workspace = true
+forma-user.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
