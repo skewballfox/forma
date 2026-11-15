@@ -760,6 +760,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "forma-store"
+version = "0.1.0"
+dependencies = [
+ "forma-config",
+ "forma-process",
+ "forma-signing-payload",
+ "p256",
+ "rustix",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "forma-user"
 version = "0.1.0"
 dependencies = [

@@ -157,6 +157,10 @@ impl ImageRef {
         if !tag_ok {
             return Err("its tag must be lower-case a-z, 0-9, '_', '.' and '-', at most 128 characters");
         }
+        // The store writes an image's next copy to `<dir_name>.new` (forma-store).
+        if tag.ends_with(".new") {
+            return Err("its tag must not end in .new, which the image store uses while publishing");
+        }
         Ok(Self(format!("{LOCALHOST}{rest}")))
     }
 
@@ -540,6 +544,8 @@ mod tests {
         assert_eq!(image.dir_name(), "moonshine_steam_latest");
         assert_eq!(ImageRef::new("localhost/moonshine/steam:latest").unwrap(), image);
         assert_eq!(ImageRef::new("app:1.2_x-y").unwrap().as_str(), "localhost/app:1.2_x-y");
+        assert!(ImageRef::new("app:1.new").is_err());
+        assert!(ImageRef::new("app:1.newer").is_ok());
 
         for bad in [
             "moonshine/steam",
