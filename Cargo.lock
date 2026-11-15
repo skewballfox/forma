@@ -425,6 +425,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "forma-quadlet"
+version = "0.1.0"
+dependencies = [
+ "insta",
+]
+
+[[package]]
 name = "forma-user"
 version = "0.1.0"
 dependencies = [

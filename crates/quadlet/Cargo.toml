@@ -1,0 +1,14 @@
+[package]
+name = "forma-quadlet"
+version.workspace = true
+edition.workspace = true
+description = "Reads Quadlet and systemd unit files, checks them against forma's rules, and renders the units forma installs"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+insta.workspace = true
