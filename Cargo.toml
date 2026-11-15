@@ -7,7 +7,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [".", "crates/config", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/user"]
+members = [".", "crates/config", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/signing/payload", "crates/user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -20,14 +20,19 @@ forma-plan = { path = "crates/plan" }
 forma-privilege = { path = "crates/privilege" }
 forma-process = { path = "crates/process" }
 forma-quadlet = { path = "crates/quadlet" }
+forma-signing-payload = { path = "crates/signing/payload" }
 forma-user = { path = "crates/user", default-features = false }
 
 anyhow = "1.0.104"
+base64 = "0.22.1"
 cap-std = "4.0.3"
 clap = { version = "4.6.7", features = ["derive"] }
 caps = "0.5.6"
+# 0.14 is a new major release; stay on the line the RustCrypto 0.10 hashes go with.
+p256 = { version = "0.13.2", default-features = false, features = ["ecdsa", "pem", "std"] }
 nix = { version = "0.31.3", default-features = false }
 serde_json = "1.0.154"
+sha2 = "0.10.9"
 serde = { version = "1.0.229", features = ["derive"] }
 rustix = { version = "1.1.5", default-features = false, features = ["std"] }
 thiserror = "2.0.21"

@@ -1,0 +1,17 @@
+[package]
+name = "forma-signing-payload"
+version.workspace = true
+edition.workspace = true
+description = "Builds and checks the signature Podman's sigstoreSigned policy verifies: the simple-signing payload and the signature file"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+base64.workspace = true
+p256.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

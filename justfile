@@ -30,5 +30,9 @@ vm-test debug="false" *filter:
 # Record where mkosi is, for vm-image
 vm-env: user::vm-env
 
+# Spike 0(a): Podman accepts and enforces a signature forma wrote. No root; uses its own Podman storage
+spike-0a:
+    scripts/spike-0a.sh
+
 # Everything: lint, unit tests, then the VM tests
 check: lint test vm-test
