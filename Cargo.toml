@@ -7,7 +7,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [".", "crates/config", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/signing/payload", "crates/user"]
+members = [".", "crates/config", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/signing/payload", "crates/signing/trust", "crates/user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -21,6 +21,7 @@ forma-privilege = { path = "crates/privilege" }
 forma-process = { path = "crates/process" }
 forma-quadlet = { path = "crates/quadlet" }
 forma-signing-payload = { path = "crates/signing/payload" }
+forma-signing-trust = { path = "crates/signing/trust" }
 forma-user = { path = "crates/user", default-features = false }
 
 anyhow = "1.0.104"

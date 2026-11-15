@@ -738,6 +738,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "forma-signing-trust"
+version = "0.1.0"
+dependencies = [
+ "forma-config",
+ "insta",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "forma-user"
 version = "0.1.0"
 dependencies = [
