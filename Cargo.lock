@@ -656,9 +656,9 @@ name = "forma"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cap-std",
  "clap",
  "forma-config",
+ "forma-host",
  "forma-ledger",
  "forma-plan",
  "forma-user",
@@ -685,6 +685,19 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "forma-host"
+version = "0.1.0"
+dependencies = [
+ "cap-std",
+ "forma-ledger",
+ "forma-plan",
+ "forma-privilege",
+ "forma-selinux-module",
+ "forma-user",
+ "thiserror",
 ]
 
 [[package]]
@@ -718,6 +731,9 @@ name = "forma-privilege"
 version = "0.1.0"
 dependencies = [
  "caps",
+ "forma-ledger",
+ "forma-plan",
+ "forma-user",
  "rustix",
  "thiserror",
 ]
@@ -735,6 +751,18 @@ name = "forma-quadlet"
 version = "0.1.0"
 dependencies = [
  "insta",
+]
+
+[[package]]
+name = "forma-selinux-module"
+version = "0.1.0"
+dependencies = [
+ "forma-host",
+ "forma-plan",
+ "forma-privilege",
+ "forma-process",
+ "rustix",
+ "thiserror",
 ]
 
 [[package]]
@@ -767,6 +795,7 @@ dependencies = [
  "forma-config",
  "forma-process",
  "forma-signing-payload",
+ "forma-user",
  "p256",
  "rustix",
  "tempfile",

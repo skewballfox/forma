@@ -33,7 +33,8 @@ pub use publish::{Publish, Published, publish};
 
 /// The lock file of an account directory.
 pub const LOCK: &str = ".lock";
-/// The file the account's `forma-load.path` unit watches.
+/// The stamp of the last publish: `forma load`, which the account's
+/// `forma-load.timer` starts, compares it with what it loaded last.
 pub const PUBLISHED: &str = ".published";
 /// The one signature of a published image.
 pub const SIGNATURE: &str = "signature-1";

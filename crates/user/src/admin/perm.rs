@@ -127,8 +127,11 @@ fn chown(node: &Node, owner: Uid, group: Gid) -> Result<(), Errno> {
 ///
 /// # Capabilities
 ///
-/// `CAP_CHOWN` to give the directory away. `CAP_FOWNER` is not needed,
-/// because root owns the directory until the last step.
+/// `CAP_CHOWN` to give the directory away, and `CAP_FOWNER` to set the
+/// mode after that, when the new owner is not root: the mode is set last,
+/// on a directory root no longer owns (shown in the VM, 2026-11-18).
+/// `CAP_DAC_OVERRIDE` as well when the parent is not root's, such as an
+/// account's `0700` home.
 pub fn create_dir<O: Ownership, J: Journal>(
     system: &mut System<O, J>,
     path: &AbsPath,
@@ -187,9 +190,54 @@ pub fn grant_traverse<O: Ownership, J: Journal>(
 ) -> Result<Vec<AbsPath>, Error> {
     let _lock = system.lock()?;
     system.check_allowed(path)?;
+    grant_on(system, path.ancestors(), user)
+}
+
+/// Lets one account pass through `dir` itself, by adding a traverse-only
+/// (`x`) entry for it on `dir` and on each directory above `dir` that it
+/// cannot already pass through. Returns the directories that changed.
+///
+/// This is [`grant_traverse`] for a directory the account must pass
+/// through rather than reach, such as the store root on the way to the
+/// account's own directory below it: `grant_traverse` leaves the path it is
+/// given alone. Entries are added and journalled as `grant_traverse` adds
+/// them, and [`revoke_traverse_through`] removes them.
+///
+/// # Errors
+///
+/// Returns [`Error::Refused`] if `dir` is outside the allowed bases, and
+/// [`Error::Perm`] if `dir` or a directory above it is a symlink.
+///
+/// # Capabilities
+///
+/// `CAP_FOWNER`, for directories root does not own.
+pub fn grant_traverse_through<O: Ownership, J: Journal>(
+    system: &mut System<O, J>,
+    dir: &AbsPath,
+    user: &User,
+) -> Result<Vec<AbsPath>, Error> {
+    let _lock = system.lock()?;
+    system.check_allowed(dir)?;
+    grant_on(system, through(dir), user)
+}
+
+/// The ancestors of `dir`, then `dir`.
+fn through(dir: &AbsPath) -> Vec<AbsPath> {
+    let mut dirs = dir.ancestors();
+    dirs.push(dir.clone());
+    dirs
+}
+
+/// Adds a traverse-only entry for `user` on each of `dirs` it cannot
+/// already pass through, in order. The caller holds the lock.
+fn grant_on<O: Ownership, J: Journal>(
+    system: &mut System<O, J>,
+    dirs: Vec<AbsPath>,
+    user: &User,
+) -> Result<Vec<AbsPath>, Error> {
     let gids = lookup::group_ids(user)?;
     let mut changed = Vec::new();
-    for dir in path.ancestors() {
+    for dir in dirs {
         let node = open(system, &dir)?;
         let acl = perm::read_acl(&node).map_err(perm_io(&dir))?;
         if perm::can_traverse(&FileStat::from_node(&node), &acl, user.uid(), &gids) {
@@ -232,9 +280,43 @@ pub fn revoke_traverse<O: Ownership, J: Journal>(
     user: &User,
 ) -> Result<Vec<AbsPath>, Error> {
     let _lock = system.lock()?;
+    revoke_on(system, path.ancestors(), user)
+}
+
+/// Removes the traverse-only entries [`grant_traverse_through`] added for
+/// `user` on `dir` and the directories above it. Returns the directories
+/// that changed.
+///
+/// An entry is removed only if it grants exactly `x` and the caller's
+/// `Ownership` claims it, as in [`revoke_traverse`].
+///
+/// # Errors
+///
+/// Returns [`Error::NotOwned`] if the caller's `Ownership` does not claim an
+/// entry, and [`Error::Perm`] if `dir` or a directory above it is a symlink.
+///
+/// # Capabilities
+///
+/// `CAP_FOWNER`, for directories root does not own.
+pub fn revoke_traverse_through<O: Ownership, J: Journal>(
+    system: &mut System<O, J>,
+    dir: &AbsPath,
+    user: &User,
+) -> Result<Vec<AbsPath>, Error> {
+    let _lock = system.lock()?;
+    revoke_on(system, through(dir), user)
+}
+
+/// Removes the traverse-only entry for `user` from each of `dirs` that has
+/// one. The caller holds the lock.
+fn revoke_on<O: Ownership, J: Journal>(
+    system: &mut System<O, J>,
+    dirs: Vec<AbsPath>,
+    user: &User,
+) -> Result<Vec<AbsPath>, Error> {
     let qualifier = Qualifier::User(user.uid());
     let mut changed = Vec::new();
-    for dir in path.ancestors() {
+    for dir in dirs {
         let node = match open(system, &dir) {
             Ok(node) => node,
             // A directory removed since the grant has no entry left to remove.

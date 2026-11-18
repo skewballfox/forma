@@ -10,7 +10,7 @@ use forma_config::{Config, HostConfig, MateriaConfig, ModuleKind, Skipped};
 use forma_ledger::{HOST, Item, Status, Store};
 use forma_privilege::Capabilities;
 use forma_quadlet::units::{
-    ACCOUNT_MATERIA_CONFIG_DIR, CONSUMERS_GROUP, LOAD_PATH_UNIT, LOAD_SERVICE_UNIT, MATERIA_UNIT, USER_UNIT_DIR,
+    ACCOUNT_MATERIA_CONFIG_DIR, CONSUMERS_GROUP, LOAD_SERVICE_UNIT, LOAD_TIMER_UNIT, MATERIA_UNIT, USER_UNIT_DIR,
 };
 use forma_quadlet::{Finding, UnitKind};
 
@@ -267,7 +267,7 @@ fn wants(request: &Request<'_>, host: &dyn HostView, warnings: &mut Vec<String>)
         .flat_map(|used| names(used.declared_by.iter().chain(&used.runs).copied()))
         .collect();
     if !accounts.is_empty() {
-        for unit in [MATERIA_UNIT, LOAD_PATH_UNIT, LOAD_SERVICE_UNIT] {
+        for unit in [MATERIA_UNIT, LOAD_TIMER_UNIT, LOAD_SERVICE_UNIT] {
             wants.add(
                 Action::WriteFile {
                     path: Path::new(USER_UNIT_DIR).join(unit),
@@ -276,7 +276,7 @@ fn wants(request: &Request<'_>, host: &dyn HostView, warnings: &mut Vec<String>)
                 &every_account,
             );
         }
-        for unit in [MATERIA_UNIT, LOAD_PATH_UNIT] {
+        for unit in [MATERIA_UNIT, LOAD_TIMER_UNIT] {
             wants.add(
                 Action::WriteFile {
                     path: Path::new(USER_UNIT_DIR).join("default.target.wants").join(unit),

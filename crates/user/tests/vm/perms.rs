@@ -1,5 +1,5 @@
 //! Owners, modes and ACLs on files the test user does not own, and
-//! `grant_traverse` and `revoke_traverse`.
+//! `grant_traverse`, `revoke_traverse` and their `_through` forms.
 
 use std::ffi::OsStr;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
@@ -155,6 +155,39 @@ vm_test! {
         assert_eq!(read_acl(&outer).entry(Qualifier::User(user.uid())), Some(Perms::EXECUTE));
 
         let again = admin::perm::grant_traverse(&mut system, &inner, &user).unwrap();
+        assert!(again.is_empty(), "{again:?}");
+    }
+}
+
+vm_test! {
+    fn grant_traverse_through_lets_the_account_pass_the_directory_itself() {
+        // The store root's case: the account must pass through `outer`
+        // (root's, 0700) to its own directory below it.
+        let mut system = common::open(common::ClaimAll);
+        let user = common::raw_user("fttravthru", true, &[]);
+        let (outer, inner) = closed_tree(&mut system, "perm-trav-through");
+        let reach = |dir: &AbsPath| common::succeeds_as(&user, "/usr/bin/test", &["-x", &dir.to_string()]);
+
+        // grant_traverse on the directory itself only opens what is above it.
+        admin::perm::grant_traverse(&mut system, &outer, &user).unwrap();
+        assert_eq!(read_acl(&outer).entry(Qualifier::User(user.uid())), None);
+        assert!(!reach(&inner), "the account passed {outer} without an entry on it");
+
+        let changed = admin::perm::grant_traverse_through(&mut system, &outer, &user).unwrap();
+
+        assert_eq!(changed, std::slice::from_ref(&outer), "BASE had its entry already");
+        assert_eq!(read_acl(&outer).entry(Qualifier::User(user.uid())), Some(Perms::EXECUTE));
+        assert!(reach(&inner));
+        assert!(!common::succeeds_as(&user, "/usr/bin/ls", &[&outer.to_string()]), "the account can list {outer}");
+        let again = admin::perm::grant_traverse_through(&mut system, &outer, &user).unwrap();
+        assert!(again.is_empty(), "{again:?}");
+
+        let removed = admin::perm::revoke_traverse_through(&mut system, &outer, &user).unwrap();
+
+        assert!(removed.contains(&outer), "{removed:?}");
+        assert_eq!(read_acl(&outer).entry(Qualifier::User(user.uid())), None);
+        assert!(!reach(&inner));
+        let again = admin::perm::revoke_traverse_through(&mut system, &outer, &user).unwrap();
         assert!(again.is_empty(), "{again:?}");
     }
 }

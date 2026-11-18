@@ -615,6 +615,6 @@ fn the_plan_lists_the_capabilities_apply_keeps() {
     let plan = world.plan(ALL);
     assert_eq!(
         plan.capabilities().to_string(),
-        "CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER, CAP_MAC_ADMIN"
+        "CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER"
     );
 }

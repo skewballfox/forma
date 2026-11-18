@@ -3,8 +3,8 @@ source: crates/plan/tests/fixtures.rs
 expression: steps_only(&revert)
 ---
 Plan:
-1. (moonshine) Remove SELinux Module moonshine_container (priority 350) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
-2. (moonshine) Remove SELinux Module gpu_container (priority 350) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
-3. (moonshine) Remove SELinux Module moonshine (priority 350) [privileged: CAP_DAC_OVERRIDE, CAP_MAC_ADMIN]
-4. (moonshine) Remove Path /var/lib/forma/staging/moonshine_steam_latest [privileged: CAP_DAC_OVERRIDE]
-5. (moonshine) Remove Path /var/lib/forma/staging/moonshine_moonshine_patches [privileged: CAP_DAC_OVERRIDE]
+1. (moonshine) Remove SELinux Module moonshine_container (priority 350) [privileged: root]
+2. (moonshine) Remove SELinux Module gpu_container (priority 350) [privileged: root]
+3. (moonshine) Remove SELinux Module moonshine (priority 350) [privileged: root]
+4. (moonshine) Remove Path /var/lib/forma/staging/moonshine_steam_latest [privileged: root, CAP_DAC_OVERRIDE]
+5. (moonshine) Remove Path /var/lib/forma/staging/moonshine_moonshine_patches [privileged: root, CAP_DAC_OVERRIDE]

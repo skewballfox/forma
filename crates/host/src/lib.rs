@@ -1,4 +1,8 @@
 //! The real host, as the planner sees it. Everything here only reads.
+//!
+//! The `forma` binary plans against [`LiveHost`]. It is a library of its own
+//! so the VM tests can check each reading against what `forma_user::admin`
+//! and `forma_selinux_module::admin` wrote.
 
 use std::os::unix::fs::MetadataExt as _;
 use std::path::Path;
@@ -6,16 +10,85 @@ use std::path::Path;
 use cap_std::ambient_authority;
 use cap_std::fs::Dir;
 use forma_plan::{HostGroup, HostPath, HostUser, HostView};
+use forma_privilege::{NoCapabilities, acquire};
+use forma_selinux_module::admin as selinux_admin;
+use forma_selinux_module::list::InstalledModule;
 use forma_user::id::Uid;
 use forma_user::lookup;
 use forma_user::name::{GroupName, UserName};
 use forma_user::path::AbsPath;
 use forma_user::perm::{self, Qualifier};
+use thiserror::Error;
+
+/// Something the host holds could not be read.
+#[derive(Debug, Error)]
+pub enum Error {
+    /// The token for the SELinux read could not be taken.
+    #[error(transparent)]
+    Privilege(#[from] forma_privilege::Error),
+    /// `semodule` could not list the policy store, though the process runs
+    /// as root.
+    #[error("cannot list the SELinux modules: {0}")]
+    SeLinux(#[from] selinux_admin::Error),
+}
 
 /// Reads the running system. A lookup that fails counts as "not there":
 /// the planner then plans the change, and `apply` fails on it with the
 /// real error.
-pub struct LiveHost;
+///
+/// The SELinux module store is the exception. Only root can list it, so
+/// [`LiveHost::read`] lists it once, through `forma_selinux_module::admin`,
+/// and a process that is not root gets a host whose module list is
+/// unreadable ([`LiveHost::unread`]): it plans as if no module were
+/// installed, as `forma plan` does without the root ledger, and says so. An
+/// executor must refuse such a host rather than act on it: the check that
+/// stops forma replacing a module it does not own (architecture 5.9) needs
+/// the real list.
+pub struct LiveHost {
+    /// Every installed module, or `None` if the process could not list them.
+    modules: Option<Vec<InstalledModule>>,
+}
+
+impl LiveHost {
+    /// Reads what only root can read, once: the SELinux module store, when
+    /// SELinux is on.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SeLinux`] if the process runs as root and `semodule`
+    /// still cannot list the store. Not being root is not an error; see
+    /// [`LiveHost::unread`].
+    ///
+    /// # Capabilities
+    ///
+    /// None. Needs root's user ID for the module list, as
+    /// `forma_selinux_module::admin::installed_modules`.
+    pub fn read() -> Result<Self, Error> {
+        if !selinux_enabled() {
+            return Ok(Self { modules: Some(Vec::new()) });
+        }
+        match selinux_admin::installed_modules(&acquire::<NoCapabilities>()?) {
+            Ok(modules) => Ok(Self { modules: Some(modules) }),
+            Err(selinux_admin::Error::NotRoot { .. }) => Ok(Self { modules: None }),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Names what [`LiveHost::read`] could not read because the process is
+    /// not root. The plan treats each as empty.
+    #[must_use]
+    pub fn unread(&self) -> Vec<&'static str> {
+        if self.modules.is_none() {
+            vec!["the SELinux module store"]
+        } else {
+            Vec::new()
+        }
+    }
+}
+
+fn selinux_enabled() -> bool {
+    Path::new("/sys/fs/selinux/enforce").exists()
+}
 
 impl HostView for LiveHost {
     fn user(&self, name: &str) -> Option<HostUser> {
@@ -63,22 +136,15 @@ impl HostView for LiveHost {
     }
 
     fn selinux_enabled(&self) -> bool {
-        Path::new("/sys/fs/selinux/enforce").exists()
+        selinux_enabled()
     }
 
     fn selinux_module(&self, name: &str) -> Vec<u16> {
-        // The policy store keeps one directory per priority and module. Only
-        // root can list it; for anyone else no module is visible.
-        let Ok(stores) = std::fs::read_dir("/var/lib/selinux") else {
-            return Vec::new();
-        };
-        stores
-            .filter_map(Result::ok)
-            .filter_map(|store| std::fs::read_dir(store.path().join("active/modules")).ok())
+        self.modules
+            .iter()
             .flatten()
-            .filter_map(Result::ok)
-            .filter(|priority| priority.path().join(name).exists())
-            .filter_map(|priority| priority.file_name().to_str()?.parse().ok())
+            .filter(|module| module.name == name)
+            .map(|module| module.priority)
             .collect()
     }
 

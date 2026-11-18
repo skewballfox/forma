@@ -16,5 +16,15 @@ rustix = { workspace = true, features = ["fs"] }
 thiserror.workspace = true
 
 [dev-dependencies]
+# The VM tests look up the accounts they make, and set the signer's umask.
+forma-user.workspace = true
 p256.workspace = true
+rustix = { workspace = true, features = ["fs", "process"] }
 tempfile.workspace = true
+
+# The VM tests (tests/vm) run the signer and the account as their own users.
+# One test per process: see tests/vm/main.rs.
+[[test]]
+name = "vm"
+path = "tests/vm/main.rs"
+harness = false

@@ -18,7 +18,7 @@ const TOOL: &str = "podman";
 ///
 /// # Errors
 ///
-/// Returns an [`Error`] if a path is not absolute.
+/// Returns an [`Error`](enum@Error) if a path is not absolute.
 pub fn pull_from_dir(rootless: &Rootless, policy: Option<&Path>, directory: &Path) -> Result<Command, Error> {
     let mut command = rootless.apply(Command::new(PROGRAM)?).arg("pull");
     if let Some(policy) = policy {
@@ -36,7 +36,7 @@ pub fn pull_from_dir(rootless: &Rootless, policy: Option<&Path>, directory: &Pat
 ///
 /// # Errors
 ///
-/// Returns an [`Error`] only if the program path is not usable.
+/// Returns an [`Error`](enum@Error) only if the program path is not usable.
 pub fn auto_update(rootless: &Rootless) -> Result<Command, Error> {
     Ok(rootless.apply(Command::new(PROGRAM)?).arg("auto-update"))
 }

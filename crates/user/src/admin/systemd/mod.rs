@@ -1,22 +1,18 @@
 //! Privileged parts that depend on systemd. Feature `systemd`.
 //!
-//! [`crate::systemd`] holds the parts that need no root.
+//! [`crate::systemd`] holds the parts that need no root, and the D-Bus
+//! calls these wrap.
 
-mod dbus;
 pub mod linger;
 pub mod modules;
 
 use std::time::Duration;
 
-use thiserror::Error;
 use zbus::blocking::Connection;
 
+pub use crate::systemd::SystemdError;
 use crate::lookup::User;
-
-/// Connects to the system bus.
-fn bus() -> Result<Connection, SystemdError> {
-    Connection::system().map_err(|source| SystemdError::bus("connect to the system bus", source))
-}
+use crate::systemd::{bus, dbus};
 
 /// Returns the IDs of an account's login sessions, leaving out the sessions
 /// logind makes for user managers.
@@ -36,46 +32,20 @@ pub(crate) fn stop_user_manager(user: &User, timeout: Duration) -> Result<(), su
         dbus::set_linger(&bus, uid, false)?;
     }
     dbus::terminate_user(&bus, uid)?;
+    wait_manager_gone(&bus, uid, timeout)
+}
+
+/// Waits for an account's user manager, runtime directory and slice to
+/// stop, in the order logind stops them, and then for logind to forget the
+/// account. Returns at once for an account with none of them running.
+fn wait_manager_gone(bus: &Connection, uid: u32, timeout: Duration) -> Result<(), super::Error> {
     for unit in [
         format!("user@{uid}.service"),
         format!("user-runtime-dir@{uid}.service"),
         format!("user-{uid}.slice"),
     ] {
-        dbus::wait_stopped(&bus, &unit, timeout)?;
+        dbus::wait_stopped(bus, &unit, timeout)?;
     }
-    dbus::wait_user_gone(&bus, uid, timeout)?;
+    dbus::wait_user_gone(bus, uid, timeout)?;
     Ok(())
-}
-
-/// A call to logind or systemd failed.
-#[derive(Debug, Error)]
-pub enum SystemdError {
-    /// A D-Bus call failed.
-    #[error("cannot {action}")]
-    Bus {
-        /// What was being done.
-        action: String,
-        /// The error.
-        source: Box<zbus::Error>,
-    },
-    /// Waiting for a unit took too long.
-    #[error("timed out waiting for {0}")]
-    Timeout(String),
-    /// A unit did not end up active.
-    #[error("unit {unit} is {state} after restarting")]
-    UnitFailed {
-        /// The unit.
-        unit: String,
-        /// Its state.
-        state: String,
-    },
-}
-
-impl SystemdError {
-    fn bus(action: impl Into<String>, source: zbus::Error) -> Self {
-        Self::Bus {
-            action: action.into(),
-            source: Box::new(source),
-        }
-    }
 }

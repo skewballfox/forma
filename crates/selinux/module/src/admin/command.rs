@@ -1,13 +1,19 @@
-//! Commands for `semodule` and `semanage` (architecture 5.9).
+//! The `semodule` and `semanage` command lines. Private to
+//! [`crate::admin`]: every one of these commands needs root, so nothing
+//! outside `admin` can build one (architecture 3.1).
+//!
+//! Arguments come only from checked values: a priority in range, module
+//! names of plain characters, absolute module paths, and names that cannot
+//! be read as options.
 
 use std::path::Path;
 
-use crate::{Command, Error, absolute, operand};
+use forma_process::{Command, Error, absolute, operand};
 
 /// Where `semodule` is installed.
-pub const SEMODULE: &str = "/usr/sbin/semodule";
+const SEMODULE: &str = "/usr/sbin/semodule";
 /// Where `semanage` is installed.
-pub const SEMANAGE: &str = "/usr/sbin/semanage";
+const SEMANAGE: &str = "/usr/sbin/semanage";
 
 fn priority(priority: u16) -> Result<String, Error> {
     if (1..=999).contains(&priority) {
@@ -45,7 +51,7 @@ fn module_name(name: &str) -> Result<&str, Error> {
 ///
 /// Returns an [`Error`] if `files` is empty, a file is not an absolute
 /// path, or the priority is out of range.
-pub fn install(module_priority: u16, files: &[&Path]) -> Result<Command, Error> {
+pub(super) fn install(module_priority: u16, files: &[&Path]) -> Result<Command, Error> {
     if files.is_empty() {
         return Err(Error::BadValue {
             tool: "semodule",
@@ -68,7 +74,7 @@ pub fn install(module_priority: u16, files: &[&Path]) -> Result<Command, Error> 
 ///
 /// Returns an [`Error`] if `names` is empty, a name is not a module name,
 /// or the priority is out of range.
-pub fn remove(module_priority: u16, names: &[&str]) -> Result<Command, Error> {
+pub(super) fn remove(module_priority: u16, names: &[&str]) -> Result<Command, Error> {
     if names.is_empty() {
         return Err(Error::BadValue {
             tool: "semodule",
@@ -89,7 +95,7 @@ pub fn remove(module_priority: u16, names: &[&str]) -> Result<Command, Error> {
 /// # Errors
 ///
 /// Returns an [`Error`] only if the program path is not usable.
-pub fn list() -> Result<Command, Error> {
+pub(super) fn list() -> Result<Command, Error> {
     Ok(Command::new(SEMODULE)?.arg("-lfull"))
 }
 
@@ -98,7 +104,7 @@ pub fn list() -> Result<Command, Error> {
 /// # Errors
 ///
 /// Returns an [`Error`] if either name could be read as an option.
-pub fn map_login(login: &str, selinux_user: &str) -> Result<Command, Error> {
+pub(super) fn map_login(login: &str, selinux_user: &str) -> Result<Command, Error> {
     Ok(Command::new(SEMANAGE)?
         .args(["login", "-a", "-s"])
         .arg(operand("semanage", "SELinux user", selinux_user)?)
@@ -110,7 +116,7 @@ pub fn map_login(login: &str, selinux_user: &str) -> Result<Command, Error> {
 /// # Errors
 ///
 /// Returns an [`Error`] if the name could be read as an option.
-pub fn unmap_login(login: &str) -> Result<Command, Error> {
+pub(super) fn unmap_login(login: &str) -> Result<Command, Error> {
     Ok(Command::new(SEMANAGE)?
         .args(["login", "-d"])
         .arg(operand("semanage", "login", login)?))

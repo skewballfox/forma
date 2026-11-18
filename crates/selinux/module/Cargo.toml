@@ -1,0 +1,28 @@
+[package]
+name = "forma-selinux-module"
+version.workspace = true
+edition.workspace = true
+description = "Installs and removes forma's SELinux modules at its own priority, and maps service accounts to an SELinux user"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+forma-privilege.workspace = true
+forma-process.workspace = true
+rustix = { workspace = true, features = ["process"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+# The VM tests (tests/vm) drop to the capabilities forma-plan lists for each
+# SELinux action, and read the results back through forma-host's LiveHost.
+forma-host.workspace = true
+forma-plan.workspace = true
+
+# One test per process, on its only thread, as in forma-privilege's: a
+# capability drop needs the process to have one thread.
+[[test]]
+name = "vm"
+path = "tests/vm/main.rs"
+harness = false

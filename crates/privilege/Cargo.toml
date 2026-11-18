@@ -13,7 +13,11 @@ caps.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-# The VM tests (tests/vm) check that they run as root.
+# The VM tests (tests/vm) check that they run as root, and run each line of
+# forma-plan's capability table through forma-user, linger included.
+forma-ledger.workspace = true
+forma-plan.workspace = true
+forma-user = { workspace = true, features = ["systemd"] }
 rustix = { workspace = true, features = ["process"] }
 
 # One test per process, on its only thread: see tests/vm/main.rs.

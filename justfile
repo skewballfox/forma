@@ -8,12 +8,16 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 mod user 'crates/user'
+mod host 'crates/host'
 mod ledger 'crates/ledger'
 mod privilege 'crates/privilege'
+mod store 'crates/store'
+mod quadlet 'crates/quadlet'
+mod selinux 'crates/selinux/module'
 mod secureblue 'vm/secureblue'
 
 # The modules with VM tests, in the order they run.
-vm_modules := "user privilege ledger secureblue"
+vm_modules := "user privilege ledger host store quadlet secureblue selinux"
 
 [private]
 default:

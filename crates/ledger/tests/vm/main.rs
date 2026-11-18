@@ -223,7 +223,8 @@ vm_test! {
 
         // Undo everything, in the order forma's revert does.
         assert_eq!(admin::perm::revoke_traverse(&mut system, &inner, &account).unwrap(), granted);
-        assert!(admin::systemd::linger::set(&mut system, &account, false).unwrap());
+        // Waits for the user manager: until it has stopped, usermod refuses the account.
+        assert!(admin::systemd::linger::disable_and_wait(&mut system, &account).unwrap());
         admin::subid::remove(&mut system, &account).unwrap();
         assert!(admin::group::remove_member(&mut system, &account, &group).unwrap());
         let options = DeleteOptions { home: HomePolicy::Remove, sessions: SessionPolicy::Terminate };

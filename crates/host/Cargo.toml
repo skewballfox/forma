@@ -1,0 +1,23 @@
+[package]
+name = "forma-host"
+version.workspace = true
+edition.workspace = true
+description = "The running host as forma's planner sees it: accounts, groups, sub-IDs, linger, ACL entries and SELinux state, read and never changed"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+cap-std.workspace = true
+forma-plan.workspace = true
+forma-privilege.workspace = true
+forma-selinux-module.workspace = true
+forma-user.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+# The VM tests (tests/vm.rs) make what LiveHost reads through forma-user,
+# linger included, and record it in a real ledger.
+forma-ledger.workspace = true
+forma-user = { workspace = true, features = ["systemd"] }

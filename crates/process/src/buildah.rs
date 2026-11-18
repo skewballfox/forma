@@ -17,7 +17,7 @@ fn base(rootless: &Rootless) -> Result<Command, Error> {
 ///
 /// # Errors
 ///
-/// Returns an [`Error`] if `reference` could be read as an option, or
+/// Returns an [`Error`](enum@Error) if `reference` could be read as an option, or
 /// `policy` is not an absolute path.
 pub fn pull(rootless: &Rootless, policy: &Path, reference: &str) -> Result<Command, Error> {
     Ok(base(rootless)?
@@ -49,7 +49,7 @@ pub struct Build<'a> {
 ///
 /// # Errors
 ///
-/// Returns an [`Error`] if a path is not absolute, or the tag or a build
+/// Returns an [`Error`](enum@Error) if a path is not absolute, or the tag or a build
 /// argument name could be read as an option or holds `=`.
 pub fn build(rootless: &Rootless, build: &Build<'_>) -> Result<Command, Error> {
     let mut command = base(rootless)?
@@ -81,7 +81,7 @@ pub fn build(rootless: &Rootless, build: &Build<'_>) -> Result<Command, Error> {
 ///
 /// # Errors
 ///
-/// Returns an [`Error`] if `tag` could be read as an option, or
+/// Returns an [`Error`](enum@Error) if `tag` could be read as an option, or
 /// `directory` is not an absolute path.
 pub fn push_to_dir(rootless: &Rootless, tag: &str, directory: &Path) -> Result<Command, Error> {
     let directory = absolute(TOOL, "staging directory", directory)?;

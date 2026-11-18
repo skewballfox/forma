@@ -23,6 +23,7 @@
 # | `tests/<vm_test_target>.rs` or `tests/<vm_test_target>/main.rs` | The tests, each `#[ignore]`d so `cargo test` skips them. Default target: `vm`. |
 # | `vm_prepare` (optional) | Run as root after the build, before the image is handed to the user. |
 # | `vm_binary` (instead of the above) | An executable to run in the guest, for a guest with no crate behind it (vm/secureblue). |
+# | `vm-test-extra` recipe (optional) | Prints paths, one per line, to stage beside the binary: the guest sees each at `/mnt/forma-test/extra/<name>`. |
 #
 # The crate's definitions win over the defaults here (allow-duplicate-*), for
 # example `timeout := "1800"` for slow tests.
@@ -109,6 +110,15 @@ vm-image-script:
     script+=$(printf '%q ' echo built {{ quote(image) }})
     printf '%s\n' "$script"
 
+# Files and directories the guest needs besides the test binary, such as
+# another program or test fixtures: their paths, one per line, on standard
+# output (build output on standard error). vm-test-script copies each into
+# the share's `extra/` directory. A module replaces this recipe; by default
+# there are none.
+[private]
+vm-test-extra:
+    @true
+
 # The module's vm-test is split in three so the workspace's vm-test can build
 # every module's binary, stage every guest, and then run all the guests under
 # one run0 prompt before checking each result: vm-test-binary and
@@ -168,6 +178,14 @@ vm-test-script binary debug="false" *filter:
     rm -rf "$stage"
     mkdir -p "$stage"
     cp --reflink=auto "$binary" "$stage/vm-tests"
+    extra=$(just --justfile {{ quote(crate / "justfile") }} --working-directory {{ quote(crate) }} vm-test-extra)
+    if [[ -n "$extra" ]]; then
+        mkdir "$stage/extra"
+        while IFS= read -r path; do
+            [[ -e "$path" ]] || { echo "no file to stage at $path" >&2; exit 1; }
+            cp -r --reflink=auto -- "$path" "$stage/extra/"
+        done <<<"$extra"
+    fi
     printf '%s\n' {{ filter }} > "$stage/args"
     # The guest streams its journal to the console when this file is there.
     [[ {{ debug }} == true ]] && touch "$stage/debug"

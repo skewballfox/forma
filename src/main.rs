@@ -3,8 +3,6 @@
 //! The binary holds no feature logic. It checks where and as whom it runs,
 //! loads configuration, calls the libraries and prints what they return.
 
-mod host;
-
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -12,11 +10,11 @@ use anyhow::{Context as _, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use forma_config::installed::{self, InstalledPaths};
 use forma_config::{HostConfig, Inputs, MateriaConfig};
+use forma_host::LiveHost;
 use forma_ledger::Store;
 use forma_plan::{Plan, Request, Scope};
 use forma_user::name::GroupName;
 
-use crate::host::LiveHost;
 
 /// Prepares a host for materia's rootless components: accounts, a local
 /// image store, signature policy and SELinux policy.
@@ -219,6 +217,7 @@ fn plan_json(plan: &Plan) -> serde_json::Value {
         "steps": plan.steps.iter().map(|step| serde_json::json!({
             "action": step.action.to_string(),
             "for": step.needs.iter().collect::<Vec<_>>(),
+            "root": step.action.needs_root_user(),
             "capabilities": step.action.capabilities().iter().map(|capability| capability.to_string()).collect::<Vec<_>>(),
         })).collect::<Vec<_>>(),
         "warnings": plan.warnings,
@@ -244,6 +243,12 @@ fn show_plan(cli: &Cli, scope: Scope<'_>, format: Format) -> anyhow::Result<Exit
         }
     }
     let ledger = read_ledger(cli.quiet)?;
+    let host = LiveHost::read()?;
+    if !cli.quiet {
+        for what in host.unread() {
+            eprintln!("warning: cannot read {what} without root; planning as if it were empty. Run as root for a true plan.");
+        }
+    }
     let plan = forma_plan::plan(
         &Request {
             config: &loaded.config,
@@ -253,7 +258,7 @@ fn show_plan(cli: &Cli, scope: Scope<'_>, format: Format) -> anyhow::Result<Exit
             scope,
         },
         &ledger,
-        &LiveHost,
+        &host,
     );
     match format {
         Format::Json => println!("{}", serde_json::to_string_pretty(&plan_json(&plan))?),

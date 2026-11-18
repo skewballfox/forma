@@ -1,5 +1,6 @@
 //! Capability checks that need root: [`acquire`] with the capabilities
-//! held, and [`drop_all_except`] read back from `/proc`.
+//! held, [`drop_all_except`] read back from `/proc`, and each line of the
+//! capability table that `forma_user::admin` can run alone (`table.rs`).
 //!
 //! They run only in a VM: `just privilege::vm-test`, or `just vm-test` for
 //! every crate. They use the forma-user guest (`crates/user/vm`).
@@ -10,6 +11,8 @@
 //! Cargo.toml). [`main`] runs each test in a fresh copy of this binary, on
 //! that process's only thread, and prints the results as libtest does.
 //! Without `--ignored`, as from `cargo test`, it runs nothing.
+
+mod table;
 
 use std::path::Path;
 use std::process::{Command, ExitCode};
@@ -68,9 +71,20 @@ const TESTS: &[(&str, fn())] = &[
     ),
 ];
 
+/// Every test: the ones above, then the capability table's.
+fn all_tests() -> Vec<(String, table::Test)> {
+    let mut tests: Vec<(String, table::Test)> = TESTS
+        .iter()
+        .map(|&(name, test)| (name.to_owned(), Box::new(test) as table::Test))
+        .collect();
+    tests.extend(table::tests());
+    tests
+}
+
 fn main() -> ExitCode {
+    let tests = all_tests();
     if let Ok(name) = std::env::var(CHILD) {
-        let (_, test) = TESTS
+        let (_, test) = tests
             .iter()
             .find(|(test, _)| *test == name)
             .unwrap_or_else(|| panic!("no test named {name}"));
@@ -89,9 +103,9 @@ fn main() -> ExitCode {
         .map(String::as_str)
         .filter(|arg| !arg.starts_with('-'))
         .collect();
-    let chosen: Vec<&str> = TESTS
+    let chosen: Vec<&str> = tests
         .iter()
-        .map(|(name, _)| *name)
+        .map(|(name, _)| name.as_str())
         .filter(|name| filters.is_empty() || filters.iter().any(|filter| name.contains(filter)))
         .collect();
 
@@ -126,7 +140,7 @@ fn main() -> ExitCode {
         "\ntest result: {result}. {} passed; {} failed; 0 ignored; 0 measured; {} filtered out",
         chosen.len() - failed.len(),
         failed.len(),
-        TESTS.len() - chosen.len(),
+        tests.len() - chosen.len(),
     );
     if failed.is_empty() {
         ExitCode::SUCCESS

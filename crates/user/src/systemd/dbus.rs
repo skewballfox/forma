@@ -1,5 +1,11 @@
-//! The few logind and systemd D-Bus calls the crate makes. Private to
-//! [`crate::admin::systemd`].
+//! The few logind and systemd D-Bus calls the crate makes. Private to the
+//! crate.
+//!
+//! Whether a call needs root is polkit's decision, made per call and per
+//! caller: an account may turn linger on or off for itself, but only root
+//! may do so for another account, end its sessions or restart a unit. Code
+//! outside [`crate::admin`] makes only the calls an account may make for
+//! itself.
 
 use std::time::{Duration, Instant};
 

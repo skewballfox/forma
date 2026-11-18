@@ -7,7 +7,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [".", "crates/build", "crates/config", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/signing/payload", "crates/signing/trust", "crates/store", "crates/user"]
+members = [".", "crates/build", "crates/config", "crates/host", "crates/ledger", "crates/plan", "crates/privilege", "crates/process", "crates/quadlet", "crates/selinux/module", "crates/signing/payload", "crates/signing/trust", "crates/store", "crates/user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -16,11 +16,13 @@ edition = "2024"
 [workspace.dependencies]
 forma-build = { path = "crates/build" }
 forma-config = { path = "crates/config" }
+forma-host = { path = "crates/host" }
 forma-ledger = { path = "crates/ledger" }
 forma-plan = { path = "crates/plan" }
 forma-privilege = { path = "crates/privilege" }
 forma-process = { path = "crates/process" }
 forma-quadlet = { path = "crates/quadlet" }
+forma-selinux-module = { path = "crates/selinux/module" }
 forma-signing-payload = { path = "crates/signing/payload" }
 forma-signing-trust = { path = "crates/signing/trust" }
 forma-store = { path = "crates/store" }
@@ -65,9 +67,9 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-cap-std.workspace = true
 clap.workspace = true
 forma-config.workspace = true
+forma-host.workspace = true
 forma-ledger.workspace = true
 forma-plan.workspace = true
 forma-user.workspace = true

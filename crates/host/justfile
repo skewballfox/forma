@@ -1,0 +1,50 @@
+# Tests for forma-host and the forma CLI that need root. They run in a VM,
+# never on the host:
+#
+#   just host::vm-test [FILTER]   run the `#[ignore]`d tests in tests/vm.rs in the guest
+#
+# They need nothing beyond what forma-user's tests need, so they boot the
+# forma-user guest instead of building their own: build it with
+# `just user::vm-image`. The CLI tests also need the `forma` binary and the
+# repository's test fixtures, which vm-test-extra stages beside the test
+# binary. The recipes are in crates/common.just; this file is loaded from
+# the workspace justfile as the module `host`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Let this file override the defaults and recipes of common.just.
+set allow-duplicate-variables
+set allow-duplicate-recipes
+
+import '../common.just'
+
+# The forma-user guest. Each run still gets its own copy, in vm/run.
+vm_image_id := "forma-user-test"
+image := env("FORMA_VM_IMAGE", module_directory() / ".." / "user" / "vm" / "mkosi.output" / (vm_image_id + ".raw"))
+
+# The workspace root: the `forma` package and its fixtures.
+workspace := module_directory() / ".." / ".."
+
+# No image of its own to build
+vm-image:
+    @echo "host uses the forma-user guest; build it with: just user::vm-image"
+
+# No image of its own, so nothing for vm-images to run as root
+[private]
+vm-image-script:
+    @true
+
+# No image of its own, so nothing to record
+vm-env:
+    @echo "host uses the forma-user guest; see: just user::vm-env"
+
+# The forma binary and the fixtures it plans against, for the guest
+[private]
+vm-test-extra:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --manifest-path {{ quote(workspace / "Cargo.toml") }} -p forma --bin forma \
+        --message-format=json-render-diagnostics \
+        | jq -r 'select(.reason == "compiler-artifact" and .target.name == "forma" and .executable != null) | .executable' \
+        | tail -n 1
+    printf '%s\n' {{ quote(workspace / "tests" / "fixtures") }}

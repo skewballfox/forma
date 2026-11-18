@@ -16,10 +16,12 @@ pub const ACCOUNT_MATERIA_CONFIG_DIR: &str = "/etc/forma/materia";
 
 /// The unit that runs each account's materia.
 pub const MATERIA_UNIT: &str = "forma-materia.service";
-/// The unit that watches an account's store directory.
-pub const LOAD_PATH_UNIT: &str = "forma-load.path";
+/// The timer that starts an account's load.
+pub const LOAD_TIMER_UNIT: &str = "forma-load.timer";
 /// The unit that loads new images for an account.
 pub const LOAD_SERVICE_UNIT: &str = "forma-load.service";
+/// How long after one load ends the timer starts the next.
+pub const LOAD_INTERVAL: &str = "2min";
 
 const HEADER: &str = "# Written by forma. Do not edit: forma apply replaces this file.\n";
 
@@ -69,26 +71,35 @@ pub fn account_materia(materia: &Path) -> GeneratedUnit {
 }
 
 /// Renders the pair of units that load new images (architecture 5.7): a
-/// path unit that watches `<store>/%u/.published`, and the service it starts.
+/// timer, and the service it starts, `forma load`.
 ///
-/// `store` is the store root and `forma` the forma program. Both paths must
-/// be absolute and hold no space.
+/// A timer and not a path unit: an account may only pass through the store
+/// root (`0700`, a traverse-only ACL entry), and systemd watches every
+/// directory on a `PathChanged=` path from `/` down, stopping without a
+/// word at the first it cannot read. A path unit on
+/// `<store>/%u/.published` waits for ever. Polling needs no more access
+/// than the load itself; `forma load` does nothing when `.published` has
+/// not changed since its last load.
+///
+/// `forma` is the forma program. The path must be absolute and hold no
+/// space.
 #[must_use]
-pub fn load_units(store: &Path, forma: &Path) -> [GeneratedUnit; 2] {
-    let mut path = String::from(HEADER);
+pub fn load_units(forma: &Path) -> [GeneratedUnit; 2] {
+    let mut timer = String::from(HEADER);
     let _ = write!(
-        path,
+        timer,
         "[Unit]\n\
-         Description=Watch for new forma images for this service account\n\
+         Description=Check for new forma images for this service account\n\
          ConditionGroup={CONSUMERS_GROUP}\n\
          \n\
-         [Path]\n\
-         PathChanged={}/%u/.published\n\
+         [Timer]\n\
+         OnActiveSec=1min\n\
+         OnUnitInactiveSec={LOAD_INTERVAL}\n\
+         AccuracySec=10s\n\
          Unit={LOAD_SERVICE_UNIT}\n\
          \n\
          [Install]\n\
-         WantedBy=default.target\n",
-        store.display()
+         WantedBy=default.target\n"
     );
     let mut service = String::from(HEADER);
     let _ = write!(
@@ -104,8 +115,8 @@ pub fn load_units(store: &Path, forma: &Path) -> [GeneratedUnit; 2] {
     );
     [
         GeneratedUnit {
-            name: LOAD_PATH_UNIT,
-            text: path,
+            name: LOAD_TIMER_UNIT,
+            text: timer,
             wanted_by: Some("default.target"),
         },
         GeneratedUnit {
@@ -145,7 +156,6 @@ pub fn account_materia_config(account: &str, hostname: &str, staging: &Path) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::reader;
 
     #[test]
     fn the_account_materia_unit_matches_the_delegation_note() {
@@ -174,18 +184,30 @@ mod tests {
     }
 
     #[test]
-    fn the_load_units_watch_the_accounts_own_store_directory() {
-        let [path, service] = load_units(Path::new("/var/lib/forma/store"), Path::new("/usr/bin/forma"));
-        let watched: Vec<String> = reader::entries(&path.text)
-            .filter(|entry| entry.key == "PathChanged")
-            .map(|entry| entry.value.into_owned())
-            .collect();
-        assert_eq!(watched, ["/var/lib/forma/store/%u/.published"]);
-        assert!(path.text.contains("Unit=forma-load.service"));
-        assert_eq!(path.wanted_by, Some("default.target"));
+    fn the_load_units_poll_with_a_timer() {
+        let [timer, service] = load_units(Path::new("/usr/bin/forma"));
+        insta::assert_snapshot!(timer.text, @r"
+        # Written by forma. Do not edit: forma apply replaces this file.
+        [Unit]
+        Description=Check for new forma images for this service account
+        ConditionGroup=forma-consumers
+
+        [Timer]
+        OnActiveSec=1min
+        OnUnitInactiveSec=2min
+        AccuracySec=10s
+        Unit=forma-load.service
+
+        [Install]
+        WantedBy=default.target
+        ");
+        assert_eq!(timer.name, "forma-load.timer");
+        assert_eq!(timer.wanted_by, Some("default.target"));
         assert_eq!(service.wanted_by, None);
         assert!(service.text.contains("ExecStart=/usr/bin/forma load\n"));
-        for unit in [&path, &service] {
+        // Nothing watches a path: see load_units.
+        assert!(!timer.text.contains("Path"));
+        for unit in [&timer, &service] {
             assert!(unit.text.contains("ConditionGroup=forma-consumers\n"), "{}", unit.name);
         }
     }

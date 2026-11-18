@@ -164,7 +164,8 @@ pub enum Action {
         /// The account.
         user: String,
     },
-    /// Turn linger off and wait for the user manager to stop.
+    /// Turn linger off and wait for the user manager to stop
+    /// (`forma_user::admin::systemd::linger::disable_and_wait`).
     DisableLinger {
         /// The account.
         user: String,
@@ -208,7 +209,11 @@ pub enum Action {
         /// The group ID to restore.
         gid: u32,
     },
-    /// Let an account pass through a directory, with an `x`-only ACL entry.
+    /// Let an account pass through a directory, with an `x`-only ACL entry
+    /// on it (and on any directory above it the account cannot pass). The
+    /// entry is on `path` itself: the executor calls
+    /// `forma_user::admin::perm::grant_traverse_through(path)`, not
+    /// `grant_traverse(path)`, which leaves `path` alone.
     GrantTraverse {
         /// The directory.
         path: PathBuf,
@@ -257,14 +262,20 @@ pub enum Action {
     },
 }
 
-/// The capabilities shadow-utils needs to change the account databases.
-const ACCOUNTS: Capabilities = Capabilities::of(&[
-    Capability::DacOverride,
-    Capability::Chown,
-    Capability::Fowner,
-    Capability::AuditWrite,
-]);
-const SELINUX: Capabilities = Capabilities::of(&[Capability::DacOverride, Capability::MacAdmin]);
+/// What shadow-utils needs to change the account databases: to write
+/// `/etc/shadow` and `/etc/gshadow` (mode `0000`), and to leave an audit
+/// record. Without `CAP_AUDIT_WRITE` the tools still succeed, but write no
+/// record, so it is kept for the audit trail (VM, 2026-11-18).
+const ACCOUNT_FILES: Capabilities = Capabilities::of(&[Capability::DacOverride, Capability::AuditWrite]);
+/// What `useradd` needs besides, to create a home and give it to the account.
+const ACCOUNTS_WITH_HOME: Capabilities =
+    ACCOUNT_FILES.union(Capabilities::of(&[Capability::Chown, Capability::Fowner]));
+/// What `semodule` and `semanage login` need: nothing. The policy store is
+/// root's, so root writes it as its owner, and loading policy is SELinux's
+/// `load_policy` permission, not `CAP_MAC_ADMIN`. They need root and a domain
+/// that may enter `semanage_exec_t`, such as `unconfined_t`, which `run0`
+/// keeps (VM, in `unconfined_t` with no capabilities, 2026-11-18).
+const SELINUX: Capabilities = Capabilities::NONE;
 
 impl Action {
     /// Returns where the action sits in a run.
@@ -319,12 +330,14 @@ impl Action {
     #[must_use]
     pub fn capabilities(&self) -> Capabilities {
         match self {
+            Self::CreateUser { .. } => ACCOUNTS_WITH_HOME,
+            // A deleted account's home is kept (decision D6), so nothing
+            // there needs CAP_CHOWN or CAP_FOWNER.
             Self::CreateGroup { .. }
             | Self::DeleteGroup { .. }
-            | Self::CreateUser { .. }
             | Self::DeleteUser { .. }
             | Self::AddMember { .. }
-            | Self::RemoveMember { .. } => ACCOUNTS,
+            | Self::RemoveMember { .. } => ACCOUNT_FILES,
             Self::AddSubIds { .. } | Self::RemoveSubIds { .. } | Self::RemovePath { .. } => {
                 Capabilities::of(&[Capability::DacOverride])
             }
@@ -339,12 +352,17 @@ impl Action {
                 Capabilities::of(&[Capability::Chown, Capability::Fowner, Capability::DacOverride])
             }
             Self::SetGroup { .. } | Self::RestoreOwner { .. } => Capabilities::of(&[Capability::Chown]),
-            Self::GrantTraverse { .. } | Self::RevokeAcl { .. } => Capabilities::of(&[Capability::Fowner]),
             Self::InstallSeLinuxModule { .. }
             | Self::RemoveSeLinuxModule { .. }
             | Self::MapSeLinuxLogin { .. }
             | Self::UnmapSeLinuxLogin { .. } => SELINUX,
-            Self::EnableLinger { .. }
+            // Every directory the plan grants on is root's (the store root
+            // and the directories above it), and an owner may set an ACL. A
+            // grant on another owner's directory fails rather than widen this.
+            // logind and systemd decide by user ID, not by capability.
+            Self::GrantTraverse { .. }
+            | Self::RevokeAcl { .. }
+            | Self::EnableLinger { .. }
             | Self::DisableLinger { .. }
             | Self::RestartUserManager { .. }
             | Self::WaitForSocket { .. } => Capabilities::NONE,
@@ -512,12 +530,16 @@ impl Step {
 
 impl fmt::Display for Step {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // A privileged action needs root or a Linux capability (architecture
+        // glossary); most need both.
         write!(f, "({}) {}", self.label(), self.action)?;
         let capabilities = self.action.capabilities();
-        if !capabilities.is_empty() {
-            write!(f, " [privileged: {capabilities}]")?;
+        match (self.action.needs_root_user(), capabilities.is_empty()) {
+            (true, true) => write!(f, " [privileged: root]"),
+            (true, false) => write!(f, " [privileged: root, {capabilities}]"),
+            (false, false) => write!(f, " [privileged: {capabilities}]"),
+            (false, true) => Ok(()),
         }
-        Ok(())
     }
 }
 
@@ -547,34 +569,37 @@ mod tests {
     }
 
     #[test]
-    fn a_step_prints_as_in_materia_with_its_capabilities() {
+    fn a_step_prints_as_in_materia_with_its_privilege() {
         let group = step(Action::CreateGroup {
             name: "moonshine-input".into(),
             system: true,
         });
         assert_eq!(
             group.to_string(),
-            "(moonshine) Create Group moonshine-input \
-             [privileged: CAP_AUDIT_WRITE, CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER]"
+            "(moonshine) Create Group moonshine-input [privileged: root, CAP_AUDIT_WRITE, CAP_DAC_OVERRIDE]"
         );
         let module = step(Action::InstallSeLinuxModule {
             name: "moonshine_container".into(),
             priority: 350,
             source: "selinux/moonshine_container.cil".into(),
         });
-        assert!(
-            module
-                .to_string()
-                .starts_with("(moonshine) Install SELinux Module moonshine_container (priority 350)")
+        assert_eq!(
+            module.to_string(),
+            "(moonshine) Install SELinux Module moonshine_container (priority 350) [privileged: root]",
+            "needs root's user ID, no capability"
         );
         let linger = step(Action::EnableLinger {
             user: "moonshine".into(),
         });
         assert_eq!(
             linger.to_string(),
-            "(moonshine) Enable Linger moonshine",
+            "(moonshine) Enable Linger moonshine [privileged: root]",
             "needs root's user ID, no capability"
         );
+        let wait = step(Action::WaitForSocket {
+            user: "moonshine".into(),
+        });
+        assert_eq!(wait.to_string(), "(moonshine) Wait For Socket moonshine", "needs nothing");
     }
 
     #[test]

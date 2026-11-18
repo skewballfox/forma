@@ -6,6 +6,13 @@ ConditionPathIsMountPoint=/mnt/forma-out
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/forma-vm-run
+# With SELinux on, the tests run in the domain forma runs in on a host, not a
+# service's unconfined_service_t: run0 has systemd start the command in the
+# caller's context, an administrator's unconfined_t. The policy lets init_t
+# enter unconfined_t (login_userdomain) through bin_t, the runner's label,
+# but not unconfined_service_t, so runcon from inside the service is refused.
+# systemd ignores this without SELinux, as in the guests other than secureblue.
+SELinuxContext=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
 
 [Install]
 WantedBy=multi-user.target

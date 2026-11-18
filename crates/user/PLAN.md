@@ -295,7 +295,8 @@ Rules:
 | Operation | Does |
 |---|---|
 | `systemd::linger(&User) -> bool` | Unprivileged. Reads the state from logind. |
-| `admin::systemd::linger::set(&System, &User, bool)` | Calls logind's `SetUserLinger` over the system bus. |
+| `systemd::set_own_linger(bool)` | Unprivileged. Calls logind's `SetUserLinger` for the process's own account, which polkit allows any account. |
+| `admin::systemd::linger::set(&System, &User, bool)` | Wraps the same call for another account, which needs root, and records the change. |
 
 Rootless Quadlets do not start at boot without linger.
 

@@ -18,12 +18,14 @@
 //! Command::new("/usr/bin/tool").unwrap().arg(&pin);
 //! ```
 //!
-//! [`buildah`], [`podman`] and [`selinux`] build the commands forma needs
-//! from typed values, so no caller assembles flags by hand.
+//! [`buildah`] and [`podman`] build the commands forma needs from typed
+//! values, so no caller assembles flags by hand. A library that builds
+//! commands for a tool that needs root keeps its builders private to its own
+//! `admin` module (architecture 3.1), using [`operand`] and [`absolute`]:
+//! `forma-selinux-module` does so for `semodule` and `semanage`.
 
 pub mod buildah;
 pub mod podman;
-pub mod selinux;
 
 use std::ffi::{OsStr, OsString};
 use std::fmt;
@@ -364,7 +366,14 @@ impl Command {
 }
 
 /// Refuses a value a tool would read as an option, or that is empty.
-pub(crate) fn operand<'a>(tool: &'static str, what: &'static str, value: &'a str) -> Result<&'a str, Error> {
+///
+/// `tool` and `what` name the tool and the value in the error.
+///
+/// # Errors
+///
+/// Returns [`Error::OptionLike`] if `value` starts with `-`, or
+/// [`Error::BadValue`] if it is empty or holds a NUL byte.
+pub fn operand<'a>(tool: &'static str, what: &'static str, value: &'a str) -> Result<&'a str, Error> {
     if value.starts_with('-') {
         return Err(Error::OptionLike {
             tool,
@@ -385,7 +394,13 @@ pub(crate) fn operand<'a>(tool: &'static str, what: &'static str, value: &'a str
 
 /// Refuses a path that is not absolute. An absolute path starts with `/`,
 /// so a tool cannot read it as an option.
-pub(crate) fn absolute<'a>(tool: &'static str, what: &'static str, path: &'a Path) -> Result<&'a Path, Error> {
+///
+/// `tool` and `what` name the tool and the value in the error.
+///
+/// # Errors
+///
+/// Returns [`Error::BadValue`] if `path` is not absolute.
+pub fn absolute<'a>(tool: &'static str, what: &'static str, path: &'a Path) -> Result<&'a Path, Error> {
     if path.is_absolute() {
         Ok(path)
     } else {
