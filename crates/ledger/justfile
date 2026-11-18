@@ -1,0 +1,33 @@
+# Tests for forma-ledger that need root. They run in a VM, never on the host:
+#
+#   just ledger::vm-test [FILTER]   run the `#[ignore]`d tests in tests/vm in the guest
+#
+# They need nothing beyond what forma-user's tests need, so they boot the
+# forma-user guest instead of building their own: build it with
+# `just user::vm-image`. The recipes are in crates/common.just;
+# this file is loaded from the workspace justfile as the module `ledger`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Let this file override the defaults and recipes of common.just.
+set allow-duplicate-variables
+set allow-duplicate-recipes
+
+import '../common.just'
+
+# The forma-user guest. Each run still gets its own copy, in vm/run.
+vm_image_id := "forma-user-test"
+image := env("FORMA_VM_IMAGE", module_directory() / ".." / "user" / "vm" / "mkosi.output" / (vm_image_id + ".raw"))
+
+# No image of its own to build
+vm-image:
+    @echo "ledger uses the forma-user guest; build it with: just user::vm-image"
+
+# No image of its own, so nothing for vm-images to run as root
+[private]
+vm-image-script:
+    @true
+
+# No image of its own, so nothing to record
+vm-env:
+    @echo "ledger uses the forma-user guest; see: just user::vm-env"

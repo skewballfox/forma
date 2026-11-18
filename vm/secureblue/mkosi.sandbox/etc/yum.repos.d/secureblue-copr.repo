@@ -1,0 +1,14 @@
+# secureblue's COPR, as secureblue's images use it, limited to the packages
+# that shape the guest's SELinux policy: their patched bubblewrap and its
+# policy module, which secureblue's flatpakfull module builds on. The key is
+# the one secureblue ships (/usr/share/pki/rpm-gpg/secureblue-copr-pubkey.gpg
+# on a secureblue host).
+[secureblue-copr]
+name=Copr repo for packages owned by secureblue
+baseurl=https://download.copr.fedorainfracloud.org/results/secureblue/packages/fedora-$releasever-$basearch/
+type=rpm-md
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/secureblue-copr-pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+includepkgs=bubblewrap,bubblewrap-selinux

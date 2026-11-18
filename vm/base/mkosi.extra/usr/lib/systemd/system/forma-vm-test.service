@@ -1,5 +1,5 @@
 [Unit]
-Description=Run the forma-user tests shared from the host
+Description=Run the VM tests shared from the host
 After=local-fs.target systemd-udevd.service systemd-logind.service dbus.service
 ConditionPathIsMountPoint=/mnt/forma-out
 

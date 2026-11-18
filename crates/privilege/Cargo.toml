@@ -11,3 +11,13 @@ workspace = true
 [dependencies]
 caps.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+# The VM tests (tests/vm) check that they run as root.
+rustix = { workspace = true, features = ["process"] }
+
+# One test per process, on its only thread: see tests/vm/main.rs.
+[[test]]
+name = "vm"
+path = "tests/vm/main.rs"
+harness = false

@@ -1,0 +1,23 @@
+#!/bin/sh
+# Labels the root file system with the guest's own policy, sets SELinux to
+# enforcing for every later boot, and powers off. Runs once, permissive, on
+# the boot label-image makes; forma-relabel.service.
+#
+# Permissive matters: the guest's policy has secureblue's
+# userns_deny_unconfined_relabels too, which no domain setfiles runs in may
+# pass when enforcing.
+set -eu
+say() { echo "forma-relabel: $*" >/dev/console; }
+
+test "$(getenforce)" = Permissive || { say "failed: not permissive"; exit 1; }
+say "labelling"
+# -x: the root file system only. Nothing is shared from the host on this boot,
+# and /boot, /efi are FAT, with no labels.
+restorecon -RFx -T 0 /
+# Last, and only once the labelling has worked: label-image reads this setting
+# back from the image as the sign that it did.
+sed -i 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config
+rm -f /.forma-relabel
+sync
+say "done"
+systemctl poweroff --force

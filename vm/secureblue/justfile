@@ -1,0 +1,43 @@
+# A guest with secureblue's SELinux policy, for checks that depend on it.
+# README.md says what it has and how it was checked.
+#
+#   just secureblue::vm-image   build the guest (needs run0 and the network)
+#   just secureblue::vm-test    boot it and run ./check, which confirms the
+#                               guest has the secureblue properties
+#   just secureblue::compare    diff the guest's user-namespace rules with
+#                               this host's, after a vm-test
+#
+# The recipes are in crates/common.just; this file is loaded
+# from the workspace justfile as the module `secureblue`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# `vm-env` writes `.env`, and just loads it for the next run.
+set dotenv-load
+
+# Let this file override the defaults and recipes of common.just.
+set allow-duplicate-variables
+set allow-duplicate-recipes
+
+import '../../crates/common.just'
+
+# No crate behind this guest: the mkosi config is this directory, and the
+# guest runs ./check.
+vm := crate
+vm_image_id := "forma-secureblue-test"
+vm_binary := crate / "check"
+
+# This host may not label the image (mkosi.conf), so it boots once to label itself.
+vm_prepare := crate / "label-image"
+
+# Diff the source types allowed to create a user namespace: this host's policy against the guest's last vm-test
+compare:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    output={{ quote(run / "out" / "output") }}
+    [[ -f "$output" ]] || { echo "no guest output at $output; run: just secureblue::vm-test" >&2; exit 1; }
+    guest=$(sed -n 's/^userns-create: //p' "$output" | tr ' ' '\n' | sed '/^$/d' | sort -u)
+    host=$(sesearch -A -c user_namespace -p create /sys/fs/selinux/policy | awk '{print $2}' | sort -u)
+    # < only on this host, > only in the guest. Local modules (moonshine's, a
+    # GPU image's) are expected on the < side.
+    diff <(echo "$host") <(echo "$guest") && echo "same rules"

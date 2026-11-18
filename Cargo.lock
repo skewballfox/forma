@@ -718,6 +718,7 @@ name = "forma-privilege"
 version = "0.1.0"
 dependencies = [
  "caps",
+ "rustix",
  "thiserror",
 ]
 

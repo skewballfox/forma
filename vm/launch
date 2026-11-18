@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The part of `just vm-test` that needs root: a fresh copy of the image, the VM,
-# and handing the result back to the user. Run through run0; see the justfile.
+# and handing the result back to the user. Run through run0; see crates/common.just.
 #
 # usage: launch RUN STAGE IMAGE OWNER TIMEOUT VMSPAWN
 set -euo pipefail

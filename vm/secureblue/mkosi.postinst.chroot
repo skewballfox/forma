@@ -1,0 +1,67 @@
+#!/bin/bash
+# Gives the guest secureblue's SELinux policy: the modules and booleans that
+# secureblue's image build installs (files/scripts/installselinuxpolicies.sh
+# and set-selinux-booleans.sh, at the commit in selinux/README.md).
+# Each step below mirrors one of theirs. What is left out, and why, is in
+# selinux/README.md.
+#
+# mkosi runs this inside the image after the packages and the extra trees
+# are in. The sources are read from selinux/ next to this script, which
+# mkosi mounts at $SRCDIR. SELINUX_SOURCES overrides that, to replay this script in a
+# container (see the README).
+set -euo pipefail
+
+sources=${SELINUX_SOURCES:-$SRCDIR/selinux}
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+cp -r "$sources"/. "$work"
+cd "$work"
+
+# Their policy_modules: compiled from .te/.fc/.if with the policy's own Makefile.
+policy_modules=(flatpakfull stdmalloc)
+
+# Their cil_policy_modules, in their order.
+cil_policy_modules=(
+    './flatpakfull/grant_systemd_flatpak_exec.cil'
+    './ptrace/container-ptrace.cil'
+    './sockets/secureblue_audit_sockets.cil'
+    './sockets/secureblue_deny_alg_sockets.cil'
+    './sockets/secureblue_deny_ipsec_sockets.cil'
+    './sockets/secureblue_deny_obscure_sockets.cil'
+    './sockets/secureblue_deny_packet_radio_sockets.cil'
+    './sockets/secureblue_socket_utils.cil'
+    './user_namespace/harden_container_userns.cil'
+    './user_namespace/harden_userns.cil'
+    './user_namespace/userns_deny_unconfined_relabels.cil'
+    './user_namespace/trivalent_restricted_launch.cil'
+)
+
+for module in "${policy_modules[@]}"; do
+    make -C "./${module}" -f /usr/share/selinux/devel/Makefile "${module}.pp"
+done
+
+# Priority 300, as theirs: above packages (200), below local changes (400).
+# Their glob ./selinux/*/*.pp picks up exactly the two modules built above.
+#
+# -n, -N: change only the image's policy store, never load a policy. mkosi's
+# chroot does not mount the host's /sys, so nothing could be loaded into the
+# host's kernel anyway; the flags make sure of it.
+semodule -n -v -X 300 -i ./*/*.pp "${cil_policy_modules[@]}"
+
+# set-selinux-booleans.sh
+setsebool -N -P deny_ptrace=on container_allow_ptrace=off
+
+# secureblue ships both user-namespace modules on, and turns each off with a
+# ujust command. Forma needs rootless Podman and buildah, so the guest is in
+# the state `ujust set-container-userns on` leaves: harden_container_userns
+# disabled, as its set_container_userns.py does it. harden_userns stays on,
+# so unconfined domains still cannot create a user namespace. The
+# development host is in this state.
+semodule -n -d harden_container_userns
+
+# They run `restorecon -FRv /usr` here. This host cannot label the image (see
+# mkosi.conf), so the image boots once permissive and labels itself with the
+# policy built above (forma-relabel.service), which then sets enforcing.
+sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config
+grep -qx 'SELINUX=permissive' /etc/selinux/config
+touch /.forma-relabel

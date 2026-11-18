@@ -1,0 +1,81 @@
+#!/bin/bash
+# The guest's own test: checks that it has the secureblue properties forma's
+# notes depend on. `just secureblue::vm-test` runs it in the guest as root,
+# in place of a cargo test binary, and fails if any line says FAIL.
+#
+# It prints the source types that may create a user namespace on one line, so
+# `just secureblue::compare` can diff them against this host's policy.
+#
+# The runner passes cargo's test arguments; they mean nothing here.
+set -u
+
+[[ -e /etc/forma-secureblue-test-vm ]] || { echo "not in the secureblue test guest" >&2; exit 2; }
+
+policy=/sys/fs/selinux/policy
+failed=0
+check() {
+    local what=$1
+    shift
+    if "$@" >/dev/null 2>&1; then
+        echo "ok   $what"
+    else
+        echo "FAIL $what"
+        failed=1
+    fi
+}
+can_create_userns() {
+    [[ -n "$(sesearch -A -s "$1" -c user_namespace -p create "$policy")" ]]
+}
+# Read once; an empty list fails the check below rather than passing the
+# "is disabled" one by accident.
+modules=$(semodule -lfull 2>/dev/null) || modules=
+module_at_300() {
+    awk -v name="$1" '$1 == 300 && $2 == name' <<<"$modules" | grep -q .
+}
+module_enabled() {
+    awk -v name="$1" '$1 == 300 && $2 == name && $4 != "disabled"' <<<"$modules" | grep -q .
+}
+not() {
+    ! "$@"
+}
+
+check "SELinux is enforcing" test "$(getenforce)" = Enforcing
+check "the image was labelled (label-image)" test ! -e /.forma-relabel
+check "podman is labelled container_runtime_exec_t" test "$(stat -c %C /usr/bin/podman | cut -d: -f3)" = container_runtime_exec_t
+check "bwrap is labelled bubblewrap_exec_t" test "$(stat -c %C /usr/bin/bwrap | cut -d: -f3)" = bubblewrap_exec_t
+# find -xdev still lists the top of each file system mounted on /, such as
+# the virtiofs shares under /mnt, which carry no label from the host and show
+# as file_t. Only files on the root file system's own device count.
+root_device=$(stat -c %d /)
+unlabelled=$(find / -xdev \( -context '*:unlabeled_t:*' -o -context '*:file_t:*' \) -printf '%D %p\n' 2>/dev/null \
+    | awk -v device="$root_device" '$1 == device { sub(/^[0-9]+ /, ""); print }')
+check "nothing on the root file system is unlabelled" test -z "$unlabelled"
+[[ -z "$unlabelled" ]] || head -n 20 <<<"$unlabelled" | sed 's/^/     /'
+check "passt is labelled passt_exec_t" test "$(stat -c %C "$(readlink -f /usr/bin/passt)" | cut -d: -f3)" = passt_exec_t
+check "semodule lists the modules" test -n "$modules"
+
+for module in flatpakfull stdmalloc grant_systemd_flatpak_exec container-ptrace \
+    secureblue_audit_sockets secureblue_deny_alg_sockets secureblue_deny_ipsec_sockets \
+    secureblue_deny_obscure_sockets secureblue_deny_packet_radio_sockets secureblue_socket_utils \
+    harden_container_userns harden_userns userns_deny_unconfined_relabels trivalent_restricted_launch; do
+    check "module $module is installed at priority 300" module_at_300 "$module"
+done
+check "harden_userns is enabled" module_enabled harden_userns
+check "harden_container_userns is disabled (ujust set-container-userns on)" not module_enabled harden_container_userns
+
+check "deny_ptrace is on" test "$(getsebool deny_ptrace)" = "deny_ptrace --> on"
+check "container_allow_ptrace is off" test "$(getsebool container_allow_ptrace)" = "container_allow_ptrace --> off"
+check "user_t_run_containers is off" test "$(getsebool user_t_run_containers)" = "user_t_run_containers --> off"
+
+for type in unconfined_t unconfined_service_t user_t staff_t; do
+    check "$type cannot create a user namespace" not can_create_userns "$type"
+done
+for type in init_t container_runtime_t container_t; do
+    check "$type can create a user namespace" can_create_userns "$type"
+done
+
+# What the policy says, done: this script runs in an unconfined domain.
+check "unshare -U is refused to $(id -Z | cut -d: -f3)" not unshare --user --map-root-user true
+
+echo "userns-create: $(sesearch -A -c user_namespace -p create "$policy" | awk '{print $2}' | sort -u | tr '\n' ' ')"
+exit "$failed"

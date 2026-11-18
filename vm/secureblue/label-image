@@ -1,0 +1,28 @@
+#!/bin/bash
+# Boots a freshly built image once so it labels itself
+# (mkosi.extra/usr/local/bin/forma-relabel), in place. Runs as root, inside
+# vm-image's run0 (crates/common.just, vm_prepare); the image is not handed to the
+# user until it has passed this.
+#
+# Nothing from the host is shared into this boot.
+set -euo pipefail
+image=$1 timeout=$2 vmspawn=$3
+
+# The guest powers itself off, on success and on failure; a hang is killed by
+# timeout. Either way the image itself says whether the labelling finished.
+# --foreground: as in vm/launch.
+timeout --foreground -k 10 "$timeout" "$vmspawn" \
+    --image="$image" \
+    --console=native \
+    --secure-boot=no \
+    --pass-ssh-key=no \
+    --ram=2G --cpus=2 \
+    || echo "the labelling boot stopped with status $?" >&2
+
+# forma-relabel sets enforcing only after restorecon has succeeded.
+# --copy-from will not overwrite a file, so it copies into a new directory.
+readback=$(mktemp -d)
+trap 'rm -rf "$readback"' EXIT
+systemd-dissect --copy-from "$image" /etc/selinux/config "$readback/config"
+grep -qx 'SELINUX=enforcing' "$readback/config" || { echo "the guest did not finish labelling $image" >&2; exit 1; }
+echo "labelled $image"

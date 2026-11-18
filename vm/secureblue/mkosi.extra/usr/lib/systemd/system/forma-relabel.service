@@ -1,0 +1,15 @@
+[Unit]
+Description=Label every file with the image's own SELinux policy, once
+# Runs on the one boot vm-image makes after the build (label-image), while the
+# guest is still permissive, and powers off.
+DefaultDependencies=no
+After=local-fs.target
+Before=sysinit.target forma-vm-test.service
+ConditionPathExists=/.forma-relabel
+# A failure must not leave the guest idling until label-image's timeout.
+FailureAction=poweroff-force
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/forma-relabel
+StandardOutput=journal+console

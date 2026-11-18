@@ -23,7 +23,9 @@
 //! ```
 //!
 //! [`drop_all_except`] removes every other capability from the process
-//! before `forma apply` acts, so child processes cannot gain more either.
+//! before `forma apply` acts, so child processes cannot gain more either. It
+//! must run while the process has a single thread (capabilities belong to
+//! each thread), and refuses otherwise.
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -253,6 +255,14 @@ pub enum Error {
         /// The capabilities it lacks.
         missing: Capabilities,
     },
+    /// The process has more than one thread. Capabilities belong to each
+    /// thread, and no thread can change another's, so a drop would leave
+    /// the others holding everything.
+    #[error("the process has {count} threads; drop capabilities before any other thread starts")]
+    Threads {
+        /// How many threads it has.
+        count: usize,
+    },
     /// The kernel refused to read or change a capability set.
     #[error("cannot {action}: {message}")]
     Kernel {
@@ -314,12 +324,29 @@ pub fn acquire<S: Set>() -> Result<Token<S>, Error> {
 /// The bounding set is changed first, because that needs `CAP_SETPCAP`,
 /// which this call then gives up with the rest.
 ///
+/// Capability sets belong to each thread, and the kernel lets a thread
+/// change only its own. So this must run while the process has one thread,
+/// before any runtime or pool starts: every thread started after it gets
+/// the reduced sets. It checks, and changes nothing if there are others.
+///
 /// # Errors
 ///
-/// Returns [`Error::Kernel`] if a set cannot be changed. A process without
-/// `CAP_SETPCAP` cannot change its bounding set; some sets may already have
-/// been reduced when the error returns.
+/// Returns [`Error::Threads`], having changed nothing, if the process has
+/// more than one thread. Returns [`Error::Kernel`] if the threads cannot be
+/// counted or a set cannot be changed. A process without `CAP_SETPCAP`
+/// cannot change its bounding set; some sets may already have been reduced
+/// when that error returns.
 pub fn drop_all_except(keep: Capabilities) -> Result<(), Error> {
+    // With one thread, nothing can start another before the drop below.
+    let count = std::fs::read_dir("/proc/self/task")
+        .map_err(|error| Error::Kernel {
+            action: "count the process's threads",
+            message: error.to_string(),
+        })?
+        .count();
+    if count != 1 {
+        return Err(Error::Threads { count });
+    }
     let keep: caps::CapsHashSet = keep.iter().map(Capability::kernel).collect();
     caps::clear(None, caps::CapSet::Ambient).map_err(kernel("clear the ambient capability set"))?;
     for capability in caps::all() {

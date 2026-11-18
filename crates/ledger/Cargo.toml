@@ -15,4 +15,6 @@ thiserror.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
+# The VM tests (tests/vm) turn linger on and off, which needs forma-user's systemd feature.
+forma-user = { workspace = true, features = ["systemd"] }
 tempfile.workspace = true
