@@ -1,0 +1,5 @@
+# A forma component next to a delegated component that forma does not manage.
+# The "alice" account and its materia were set up by hand, so forma must leave
+# "legacy" alone instead of refusing the whole host.
+[Hosts.forge]
+Components = ["app", "legacy"]

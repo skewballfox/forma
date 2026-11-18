@@ -78,7 +78,7 @@ fn every_invalid_fixture_fails_with_the_error_it_names() {
             );
         }
     }
-    assert_eq!(checked, 12, "every fixture that names a forma-config error was run");
+    assert_eq!(checked, 13, "every fixture that names a forma-config error was run");
 }
 
 #[test]
@@ -276,6 +276,15 @@ fn a_repository_account_needs_no_declaration_in_the_component() {
         message.contains("[Forma.Accounts]") || message.contains("repository manifest"),
         "{message}"
     );
+}
+
+#[test]
+fn a_delegated_component_without_forma_tables_is_left_alone() {
+    let config = load_repository(&fixtures().join("valid/unmanaged-account")).unwrap();
+    let accounts = config.accounts();
+    assert_eq!(accounts.len(), 1, "only the account forma declares");
+    assert_eq!(accounts[0].account.value.name.as_str(), "app");
+    assert_eq!(config.component("legacy").unwrap().user.as_ref().unwrap().as_str(), "alice");
 }
 
 #[test]

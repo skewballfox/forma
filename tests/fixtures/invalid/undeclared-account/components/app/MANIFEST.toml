@@ -1,0 +1,9 @@
+# Delegated to "alice", and asks forma to build an image for it, but nothing
+# declares "alice", so nothing would create it.
+[Settings]
+User = "alice"
+
+[[Forma.Images]]
+Tag = "app/app:latest"
+Containerfile = "build/Containerfile"
+Context = "build"

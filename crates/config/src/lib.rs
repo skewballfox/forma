@@ -602,8 +602,11 @@ fn check_accounts(config: &Config, errors: &mut Vec<ManifestError>) {
             });
         }
     }
+    // A delegated component that declares nothing for forma is not forma's:
+    // its account may be managed by hand or by another tool.
     for component in &config.components {
         if let (Some(user), None) = (&component.user, &component.forma.account)
+            && !component.forma.is_empty()
             && !first.contains_key(user)
             && !repository.contains_key(user)
         {

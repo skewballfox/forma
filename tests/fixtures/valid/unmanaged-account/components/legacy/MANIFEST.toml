@@ -1,0 +1,4 @@
+# Delegated to an account nothing in the repository declares, and no [Forma]
+# tables: not forma's business.
+[Settings]
+User = "alice"
