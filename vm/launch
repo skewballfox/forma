@@ -14,16 +14,33 @@ mv "$stage" "$run/share"
 cp --reflink=auto "$image" "$run/disk.raw"
 chmod u+w "$run/disk.raw"
 
+vm=(
+    "$vmspawn"
+    --image="$run/disk.raw"
+    --secure-boot=no
+    --pass-ssh-key=no
+    --ram=2G --cpus=2
+    --bind-ro="$run/share":/mnt/forma-test
+    --bind="$run/out":/mnt/forma-out
+)
+
 # --foreground: without it timeout puts vmspawn in a background process group,
 # and the first read from the console stops it (SIGTTIN) and the whole VM with it.
-timeout --foreground -k 10 "$timeout" "$vmspawn" \
-    --image="$run/disk.raw" \
-    --console=native \
-    --secure-boot=no \
-    --pass-ssh-key=no \
-    --ram=2G --cpus=2 \
-    --bind-ro="$run/share":/mnt/forma-test \
-    --bind="$run/out":/mnt/forma-out \
-    || echo "the VM stopped with status $?" >&2
+#
+# Normally the console is read-only and goes through console-filter, so the
+# firmware's boot messages and screen clears never reach the terminal and the
+# output joins the rest of the run. With --debug (a `debug` file in the share)
+# it is the guest's own console, unfiltered and interactive.
+set +e
+if [[ -e "$run/share/debug" ]]; then
+    timeout --foreground -k 10 "$timeout" "${vm[@]}" --console=native
+    status=$?
+else
+    timeout --foreground -k 10 "$timeout" "${vm[@]}" --console=read-only \
+        | "$(dirname "$(readlink -f "$0")")/console-filter"
+    status=${PIPESTATUS[0]}
+fi
+set -e
+(( status == 0 )) || echo "the VM stopped with status $status" >&2
 
 chown -R "$owner" "$run"

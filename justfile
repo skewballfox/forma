@@ -49,7 +49,7 @@ vm-images:
     for script in "${scripts[@]:1}"; do joined+=" && $script"; done
     run0 --via-shell "$joined"
 
-# Run every module's VM tests, each in its own guest, under one run0 prompt; arguments filter by test name, --debug streams the guest's journal
+# Run every module's VM tests, each in its own guest, under one run0 prompt; arguments filter by test name, --debug streams the guest's journal on its own unfiltered console
 [arg('debug', long="debug", value="true")]
 vm-test debug="false" *filter:
     #!/usr/bin/env bash

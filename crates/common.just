@@ -117,7 +117,7 @@ vm-image-script:
 #
 # Everything after the recipe name is passed to the test binary as a filter.
 
-# Run this crate's VM tests in a fresh copy of its guest image; --debug also streams the guest's journal
+# Run this crate's VM tests in a fresh copy of its guest image; --debug also streams the guest's journal on its own unfiltered console
 [arg('debug', long="debug", value="true")]
 vm-test debug="false" *filter:
     #!/usr/bin/env bash

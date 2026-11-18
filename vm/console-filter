@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Filters a guest's console for a terminal that keeps its scrollback: vm/launch
+# and label-image pipe the guest's read-only console through this.
+#
+# - The firmware and the boot loader reset and clear the screen (ESC c, and
+#   CSI sequences such as ESC[2J, ESC[H) and move the cursor; those go.
+#   Colours (CSI ... m) stay.
+# - The firmware's boot manager says which device it boots ("BdsDxe: loading
+#   Boot0002 ..."); those lines go. Fedora's OVMF has no switch for them.
+# - Serial lines end in CR LF; the CR goes.
+exec sed -u -E \
+    -e 's/\r$//' \
+    -e 's/\x1bc//g' \
+    -e 's/\x1b\[[0-9;?]*[A-Za-ln-z]//g' \
+    -e '/BdsDxe: /d'
