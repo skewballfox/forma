@@ -1,0 +1,7 @@
+[Hosts.forge]
+Components = ["app"]
+
+[Forma.Accounts.svc]
+MemberOf = ["svc-data"]
+
+[Forma.Groups.svc-data]

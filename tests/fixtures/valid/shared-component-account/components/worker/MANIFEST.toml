@@ -1,0 +1,9 @@
+[Settings]
+User = "svc"
+
+[Forma.Account]
+Name = "svc"
+MemberOf = ["svc-data"]
+
+[[Forma.Groups]]
+Name = "svc-data"

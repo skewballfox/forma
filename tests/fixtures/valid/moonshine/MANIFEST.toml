@@ -56,3 +56,29 @@ Scope = "quay.io/fedora"
 Type = "sigstore-keyless"
 Issuer = "https://accounts.google.com"
 Subject = "release@fedoraproject.org"
+
+# Service accounts that several components share, declared once. The key is
+# the account's name. A component runs as one by setting [Settings] User to
+# that name, and must not declare it again under [Forma.Account]. Forma
+# creates an account only on a host where an installed component runs as it.
+[Forma.Accounts.moonshine]
+Home = true
+Linger = true
+SubIds = 65536
+# Supplementary groups. Each must exist on the host already (render) or be
+# declared to forma under [Forma.Groups] (moonshine-input). Forma never
+# creates, changes or removes a group it did not create.
+MemberOf = ["render", "moonshine-input"]
+
+# No component on forge runs as this one, so forma creates neither it nor
+# its group there.
+[Forma.Accounts.backup]
+MemberOf = ["backup-readers"]
+
+# Groups declared once. Forma creates one only where an account it creates
+# joins it, and removes it when none does.
+# /dev/uinput and /dev/uhid belong to moonshine-input, not to input.
+[Forma.Groups.moonshine-input]
+System = true
+
+[Forma.Groups.backup-readers]

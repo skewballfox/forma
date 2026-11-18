@@ -202,6 +202,13 @@ fn the_first_plan_for_the_moonshine_host() {
     assert_eq!(plan.problems, []);
     assert_eq!(plan.warnings.len(), 2, "{:#?}", plan.warnings);
     insta::assert_snapshot!(steps_only(&plan));
+    // The repository declares a backup account and group that no component
+    // on this host runs as, so forma creates neither.
+    assert!(
+        !actions(&plan).iter().any(|line| line.contains("backup")),
+        "{:#?}",
+        actions(&plan)
+    );
 }
 
 #[test]
@@ -596,7 +603,7 @@ fn the_fixtures_that_break_a_unit_or_base_image_rule_stop_the_plan() {
 
 #[test]
 fn the_valid_repositories_plan_without_problems() {
-    for fixture in ["moonshine", "lowercase-keys"] {
+    for fixture in ["moonshine", "lowercase-keys", "shared-component-account"] {
         let plan = repository_plan(&fixtures().join("valid").join(fixture));
         assert_eq!(plan.problems, [], "{fixture}");
     }

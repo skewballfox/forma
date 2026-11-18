@@ -202,6 +202,39 @@ pub enum ManifestError {
         /// The component that holds it.
         second_component: String,
     },
+    /// A component declares an account that the repository manifest
+    /// declares under `[Forma.Accounts]`. Even an identical copy is refused,
+    /// so the account has one place to change.
+    #[error(
+        "{second}: account {account} is declared in the repository manifest at {first}, so component \
+         {component} must not declare it too; remove its [Forma.Account] and keep [Settings] User"
+    )]
+    AccountDeclaredTwice {
+        /// The account.
+        account: String,
+        /// The declaration in the repository manifest.
+        first: Box<Origin>,
+        /// The component's declaration.
+        second: Origin,
+        /// The component.
+        component: String,
+    },
+    /// A component declares a group that the repository manifest declares
+    /// under `[Forma.Groups]`.
+    #[error(
+        "{second}: group {group} is declared in the repository manifest at {first}, so component \
+         {component} must not declare it too; remove its [[Forma.Groups]] entry"
+    )]
+    GroupDeclaredTwice {
+        /// The group.
+        group: String,
+        /// The declaration in the repository manifest.
+        first: Box<Origin>,
+        /// The component's declaration.
+        second: Origin,
+        /// The component.
+        component: String,
+    },
     /// Two declarations build the same image tag.
     #[error("{second}: image {image} is already declared by {first_component} at {first}")]
     ImageDeclarationConflict {
@@ -214,10 +247,10 @@ pub enum ManifestError {
         /// The second declaration.
         second: Origin,
     },
-    /// `MemberOf` names a group that does not exist and that no component creates.
+    /// `MemberOf` names a group that does not exist and that forma does not create.
     #[error(
         "{at}: account {account} is to join group {group}, which does not exist on this host \
-         and is not declared under [[Forma.Groups]]"
+         and is declared neither under [Forma.Groups] nor under a component's [[Forma.Groups]]"
     )]
     MemberGroupMissing {
         /// The value.
@@ -263,8 +296,9 @@ pub enum ManifestError {
         /// The image.
         image: String,
     },
-    /// A component declares the builder's or the signer's account as its own.
-    #[error("{at}: account {account} is forma's {role} account; a component cannot use it")]
+    /// A component or the repository manifest declares the builder's or the
+    /// signer's account as a service account.
+    #[error("{at}: account {account} is forma's {role} account; it cannot be a service account")]
     ReservedAccount {
         /// The declaration.
         at: Origin,
@@ -292,8 +326,9 @@ fn mismatch_text(account: Option<&str>, user: Option<&str>) -> String {
              so it installed the Quadlets as root; set [Settings] User = {account:?}"
         ),
         (None, Some(user)) => format!(
-            "materia delegated the component to {user}, but no installed component declares \
-             that account under [Forma.Account], so nothing creates it"
+            "materia delegated the component to {user}, but neither the repository manifest's \
+             [Forma.Accounts] nor an installed component's [Forma.Account] declares that account, \
+             so nothing creates it"
         ),
         (None, None) => "account and User differ".to_owned(),
     }
@@ -323,6 +358,8 @@ impl ManifestError {
             Self::AccountUserMismatch { .. } => "AccountUserMismatch",
             Self::AccountDeclarationConflict { .. } => "AccountDeclarationConflict",
             Self::GroupDeclarationConflict { .. } => "GroupDeclarationConflict",
+            Self::AccountDeclaredTwice { .. } => "AccountDeclaredTwice",
+            Self::GroupDeclaredTwice { .. } => "GroupDeclaredTwice",
             Self::ImageDeclarationConflict { .. } => "ImageDeclarationConflict",
             Self::MemberGroupMissing { .. } => "MemberGroupMissing",
             Self::UnknownImageDependency { .. } => "UnknownImageDependency",

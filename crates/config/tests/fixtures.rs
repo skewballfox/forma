@@ -44,6 +44,9 @@ const CONFIG_ERRORS: &[&str] = &[
     "HostOnlySetting",
     "MemberGroupMissing",
     "ImageWithoutUser",
+    "AccountDeclaredTwice",
+    "GroupDeclaredTwice",
+    "ReservedAccount",
 ];
 
 #[test]
@@ -75,7 +78,7 @@ fn every_invalid_fixture_fails_with_the_error_it_names() {
             );
         }
     }
-    assert_eq!(checked, 9, "every fixture that names a forma-config error was run");
+    assert_eq!(checked, 12, "every fixture that names a forma-config error was run");
 }
 
 #[test]
@@ -152,7 +155,9 @@ fn check_moonshine(config: &Config) {
         .collect();
     assert_eq!(names, ["moonshine", "nvidia-driver"]);
 
-    // One shared account, declared by both and running both.
+    // One shared account, declared once by the repository and running both.
+    // The repository's backup account runs nothing here, so it is left out.
+    assert_eq!(config.settings.accounts.len(), 2);
     let accounts = config.accounts();
     assert_eq!(accounts.len(), 1);
     let account = &accounts[0];
@@ -166,14 +171,16 @@ fn check_moonshine(config: &Config) {
         .map(|group| group.value.as_str())
         .collect();
     assert_eq!(member_of, ["moonshine-input", "render"]);
-    assert_eq!(account.declared_by.len(), 2);
+    assert_eq!(account.declared_by.len(), 0, "the repository declares it");
     assert_eq!(account.runs.len(), 2);
 
+    // backup-readers is joined only by the unused backup account.
     let groups = config.groups();
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].group.value.name.as_str(), "moonshine-input");
     assert!(groups[0].group.value.system);
-    assert_eq!(groups[0].declared_by.len(), 2);
+    assert_eq!(groups[0].declared_by.len(), 0, "the repository declares it");
+    assert_eq!(groups[0].joined_by.len(), 2);
 
     // The override replaces nvidia-driver's whole Images list for this host.
     let driver = config.component("nvidia-driver").unwrap();
@@ -243,6 +250,32 @@ impl FromHostManifest for forma_config::Image {
             .parent()
             .is_some_and(|parent| !parent.ends_with("nvidia-driver"))
     }
+}
+
+#[test]
+fn components_can_share_an_account_they_each_declare() {
+    let config = load_repository(&fixtures().join("valid/shared-component-account")).unwrap();
+    assert_eq!(config.settings.accounts.len(), 0);
+    let accounts = config.accounts();
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].account.value.name.as_str(), "svc");
+    assert_eq!(accounts[0].declared_by.len(), 2);
+    assert_eq!(accounts[0].runs.len(), 2);
+    let groups = config.groups();
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].declared_by.len(), 2);
+    assert_eq!(groups[0].joined_by.len(), 2);
+}
+
+#[test]
+fn a_repository_account_needs_no_declaration_in_the_component() {
+    let errors = load_repository(&fixtures().join("invalid/account-declared-twice")).unwrap_err();
+    let message = errors[0].to_string();
+    assert!(message.contains("components/app/MANIFEST.toml"), "{message}");
+    assert!(
+        message.contains("[Forma.Accounts]") || message.contains("repository manifest"),
+        "{message}"
+    );
 }
 
 #[test]

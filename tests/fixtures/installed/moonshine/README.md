@@ -16,7 +16,10 @@ Tests point forma at three directories:
 The files for `moonshine` and `nvidia-driver` were written by materia's own
 code (`pkg/loader`, `pkg/repository`, `pkg/delegate` on the
 `feat-delegated-components` branch), not by hand. Regenerate them when
-`valid/moonshine` changes.
+`valid/moonshine` changes. The one exception: when the shared account moved to
+the repository manifest, the `[Forma.Account]` and `[[Forma.Groups]]` tables
+were removed by hand from `data/<component>/MANIFEST.toml`, which materia
+copies unchanged from the component.
 
 | Path | What it is |
 |---|---|

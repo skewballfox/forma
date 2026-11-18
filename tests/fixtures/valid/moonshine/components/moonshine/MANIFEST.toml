@@ -1,5 +1,6 @@
 # User hands the component to the materia of that account, so its containers
-# run rootless (docs/architecture.md 2.4). It must equal [Forma.Account] Name.
+# run rootless (docs/architecture.md 2.4). The repository manifest declares the
+# account under [Forma.Accounts.moonshine].
 # The scripts still run as root: materia runs them at the moments forma needs
 # (docs/architecture.md 2.3), and requires SetupScript and CleanupScript
 # together.
@@ -16,21 +17,9 @@ Service = "moonshine.service"
 # from Image= in moonshine.container, and the driver image from
 # nvidia-driver.volume in the nvidia-driver component.
 
-[Forma.Account]
-Name = "moonshine"
-Home = true
-Linger = true
-SubIds = 65536
-# Supplementary groups. Each must exist on the host already (render) or be
-# created by forma under [[Forma.Groups]] (moonshine-input). Forma never
-# creates, changes or removes a group it did not create.
-MemberOf = ["render", "moonshine-input"]
-
-# Groups forma creates. Removed when no installed component declares them.
-# /dev/uinput and /dev/uhid belong to this group, not to input.
-[[Forma.Groups]]
-Name = "moonshine-input"
-System = true
+# No [Forma.Account] either: the moonshine account is shared with
+# nvidia-driver, so the repository manifest declares it once under
+# [Forma.Accounts.moonshine], and User above picks it.
 
 [[Forma.Images]]
 Tag = "moonshine/moonshine:patches"

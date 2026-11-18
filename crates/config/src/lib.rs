@@ -161,9 +161,11 @@ impl fmt::Display for Warning {
 /// An account and the components that need it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountUse<'a> {
-    /// The declaration. Every component declares it the same way.
+    /// The declaration: the repository manifest's, or the one every
+    /// declaring component shares.
     pub account: &'a Located<Account>,
-    /// The components that declare it, by name.
+    /// The components that declare it, by name. Empty for an account the
+    /// repository manifest declares.
     pub declared_by: Vec<&'a ComponentName>,
     /// The components materia delegated to it, by name.
     pub runs: Vec<&'a ComponentName>,
@@ -174,8 +176,11 @@ pub struct AccountUse<'a> {
 pub struct GroupUse<'a> {
     /// The declaration.
     pub group: &'a Located<Group>,
-    /// The components that declare it, by name.
+    /// The components that declare it, by name. Empty for a group the
+    /// repository manifest declares.
     pub declared_by: Vec<&'a ComponentName>,
+    /// The components that need an account that joins it, by name.
+    pub joined_by: Vec<&'a ComponentName>,
 }
 
 /// An image and the component that declares it.
@@ -208,9 +213,29 @@ impl Config {
     }
 
     /// Returns each service account once, by name, with the components that need it.
+    ///
+    /// An account in the repository manifest is listed only when an
+    /// installed component runs as it.
     #[must_use]
     pub fn accounts(&self) -> Vec<AccountUse<'_>> {
         let mut accounts: BTreeMap<&AccountName, AccountUse<'_>> = BTreeMap::new();
+        for account in &self.settings.accounts {
+            let name = &account.value.name;
+            if self
+                .components
+                .iter()
+                .any(|component| component.user.as_ref() == Some(name))
+            {
+                accounts.insert(
+                    name,
+                    AccountUse {
+                        account,
+                        declared_by: Vec::new(),
+                        runs: Vec::new(),
+                    },
+                );
+            }
+        }
         for component in &self.components {
             if let Some(account) = &component.forma.account {
                 accounts
@@ -233,9 +258,36 @@ impl Config {
     }
 
     /// Returns each group forma creates once, by name, with the components that need it.
+    ///
+    /// A group in the repository manifest is listed only when an account
+    /// that [`Config::accounts`] lists joins it.
     #[must_use]
     pub fn groups(&self) -> Vec<GroupUse<'_>> {
+        let accounts = self.accounts();
+        let joined_by = |name: &GroupName| -> Vec<&ComponentName> {
+            let mut needs: Vec<&ComponentName> = accounts
+                .iter()
+                .filter(|used| used.account.value.member_of.iter().any(|group| group.value == *name))
+                .flat_map(|used| used.declared_by.iter().chain(&used.runs).copied())
+                .collect();
+            needs.sort();
+            needs.dedup();
+            needs
+        };
         let mut groups: BTreeMap<&GroupName, GroupUse<'_>> = BTreeMap::new();
+        for group in &self.settings.groups {
+            let needs = joined_by(&group.value.name);
+            if !needs.is_empty() {
+                groups.insert(
+                    &group.value.name,
+                    GroupUse {
+                        group,
+                        declared_by: Vec::new(),
+                        joined_by: needs,
+                    },
+                );
+            }
+        }
         for component in &self.components {
             for group in &component.forma.groups {
                 groups
@@ -243,6 +295,7 @@ impl Config {
                     .or_insert_with(|| GroupUse {
                         group,
                         declared_by: Vec::new(),
+                        joined_by: joined_by(&group.value.name),
                     })
                     .declared_by
                     .push(&component.name);
@@ -486,23 +539,43 @@ fn check(config: &Config, groups: &dyn GroupLookup, errors: &mut Vec<ManifestErr
 }
 
 fn check_accounts(config: &Config, errors: &mut Vec<ManifestError>) {
+    let reserved = |account: &Located<Account>, errors: &mut Vec<ManifestError>| {
+        for (role, reserved) in [
+            ("builder", &config.settings.builder.account),
+            ("signer", &config.settings.signer),
+        ] {
+            if account.value.name == *reserved {
+                errors.push(ManifestError::ReservedAccount {
+                    at: account.at.clone(),
+                    account: account.value.name.to_string(),
+                    role,
+                });
+            }
+        }
+    };
+    let repository: BTreeMap<&AccountName, &Located<Account>> = config
+        .settings
+        .accounts
+        .iter()
+        .map(|account| (&account.value.name, account))
+        .collect();
+    for account in repository.values() {
+        reserved(account, errors);
+    }
     let mut first: BTreeMap<&AccountName, (&Component, &Located<Account>)> = BTreeMap::new();
     for component in &config.components {
         let Some(account) = &component.forma.account else {
             continue;
         };
         let name = &account.value.name;
-        for (role, reserved) in [
-            ("builder", &config.settings.builder.account),
-            ("signer", &config.settings.signer),
-        ] {
-            if name == reserved {
-                errors.push(ManifestError::ReservedAccount {
-                    at: account.at.clone(),
-                    account: name.to_string(),
-                    role,
-                });
-            }
+        reserved(account, errors);
+        if let Some(declared) = repository.get(name) {
+            errors.push(ManifestError::AccountDeclaredTwice {
+                account: name.to_string(),
+                first: Box::new(declared.at.clone()),
+                second: account.at.clone(),
+                component: component.name.to_string(),
+            });
         }
         match first.get(name) {
             None => {
@@ -532,6 +605,7 @@ fn check_accounts(config: &Config, errors: &mut Vec<ManifestError>) {
     for component in &config.components {
         if let (Some(user), None) = (&component.user, &component.forma.account)
             && !first.contains_key(user)
+            && !repository.contains_key(user)
         {
             errors.push(ManifestError::AccountUserMismatch {
                 component: component.name.to_string(),
@@ -544,9 +618,23 @@ fn check_accounts(config: &Config, errors: &mut Vec<ManifestError>) {
 }
 
 fn check_groups(config: &Config, groups: &dyn GroupLookup, errors: &mut Vec<ManifestError>) {
+    let repository: BTreeMap<&GroupName, &Located<Group>> = config
+        .settings
+        .groups
+        .iter()
+        .map(|group| (&group.value.name, group))
+        .collect();
     let mut first: BTreeMap<&GroupName, (&Component, &Located<Group>)> = BTreeMap::new();
     for component in &config.components {
         for group in &component.forma.groups {
+            if let Some(declared) = repository.get(&group.value.name) {
+                errors.push(ManifestError::GroupDeclaredTwice {
+                    group: group.value.name.to_string(),
+                    first: Box::new(declared.at.clone()),
+                    second: group.at.clone(),
+                    component: component.name.to_string(),
+                });
+            }
             match first.get(&group.value.name) {
                 None => {
                     first.insert(&group.value.name, (component, group));
@@ -567,7 +655,10 @@ fn check_groups(config: &Config, groups: &dyn GroupLookup, errors: &mut Vec<Mani
     // Report a missing group once per account, not once per component.
     for account in config.accounts() {
         for group in &account.account.value.member_of {
-            if !first.contains_key(&group.value) && !groups.group_exists(&group.value) {
+            if !first.contains_key(&group.value)
+                && !repository.contains_key(&group.value)
+                && !groups.group_exists(&group.value)
+            {
                 errors.push(ManifestError::MemberGroupMissing {
                     at: group.at.clone(),
                     account: account.account.value.name.to_string(),

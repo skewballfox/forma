@@ -35,7 +35,8 @@ impl<T: PartialEq> PartialEq for Located<T> {
 
 impl<T: Eq> Eq for Located<T> {}
 
-/// A service account, from `[Forma.Account]`.
+/// A service account, from a component's `[Forma.Account]` or the
+/// repository manifest's `[Forma.Accounts.<name>]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Account {
     /// The account's name.
@@ -50,7 +51,8 @@ pub struct Account {
     pub member_of: Vec<Located<GroupName>>,
 }
 
-/// A group forma creates, from `[[Forma.Groups]]`.
+/// A group forma creates, from a component's `[[Forma.Groups]]` or the
+/// repository manifest's `[Forma.Groups.<name>]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Group {
     /// The group's name.
@@ -244,6 +246,13 @@ pub struct Settings {
     pub store_root: HostPath,
     /// Requirements for the base images of every build.
     pub base_images: BaseImages,
+    /// Service accounts declared once for every component that runs as
+    /// them, from `[Forma.Accounts.<name>]`. Forma creates one only on a
+    /// host where an installed component sets `[Settings] User` to it.
+    pub accounts: Vec<Located<Account>>,
+    /// Groups declared once, from `[Forma.Groups.<name>]`. Forma creates
+    /// one only on a host where an account it creates joins it.
+    pub groups: Vec<Located<Group>>,
 }
 
 /// The default builder account.
@@ -423,6 +432,11 @@ fn account(table: &Table, at: &Origin) -> Result<Located<Account>, ManifestError
         name: "[Forma.Account]",
     };
     let (name, name_at) = reader.required("Name")?;
+    account_fields(&reader, account_name(name, name_at)?)
+}
+
+/// Reads an account's keys other than its name.
+fn account_fields(reader: &Reader<'_>, name: AccountName) -> Result<Located<Account>, ManifestError> {
     let mut member_of = reader
         .strings("MemberOf")?
         .into_iter()
@@ -437,13 +451,13 @@ fn account(table: &Table, at: &Origin) -> Result<Located<Account>, ManifestError
     member_of.dedup();
     Ok(Located {
         value: Account {
-            name: account_name(name, name_at)?,
+            name,
             home: reader.boolean("Home", true)?,
             linger: reader.boolean("Linger", true)?,
             sub_ids: reader.sub_ids("SubIds")?,
             member_of,
         },
-        at: at.clone(),
+        at: reader.at.clone(),
     })
 }
 
@@ -460,6 +474,54 @@ fn group(table: &Table, at: &Origin) -> Result<Located<Group>, ManifestError> {
             system: reader.boolean("System", true)?,
         },
         at: at.clone(),
+    })
+}
+
+/// Reads a table of named tables from the repository manifest, such as
+/// `[Forma.Accounts]`, where each key is a name and each value a table.
+fn named_tables<T>(
+    reader: &Reader<'_>,
+    key: &str,
+    read: impl Fn(&Reader<'_>, &str, &Origin) -> Result<Located<T>, ManifestError>,
+) -> Result<Vec<Located<T>>, ManifestError> {
+    let Some((map, _)) = reader.table(key) else {
+        return Ok(Vec::new());
+    };
+    map.entries
+        .iter()
+        .map(|entry| {
+            let name = format!("[Forma.{key}.{}]", entry.key);
+            let Value::Table(table) = &entry.node.value else {
+                return Err(ManifestError::WrongType {
+                    at: entry.node.at.clone(),
+                    key: name,
+                    expected: "a table",
+                    found: entry.node.value.kind(),
+                });
+            };
+            let inner = Reader {
+                table,
+                at: &entry.node.at,
+                name: &name,
+            };
+            read(&inner, &entry.key, &entry.key_at)
+        })
+        .collect()
+}
+
+/// Reads `[Forma.Accounts.<name>]` from the repository manifest.
+fn repository_account(reader: &Reader<'_>, name: &str, name_at: &Origin) -> Result<Located<Account>, ManifestError> {
+    account_fields(reader, account_name(name, name_at)?)
+}
+
+/// Reads `[Forma.Groups.<name>]` from the repository manifest.
+fn repository_group(reader: &Reader<'_>, name: &str, name_at: &Origin) -> Result<Located<Group>, ManifestError> {
+    Ok(Located {
+        value: Group {
+            name: group_name(name, name_at)?,
+            system: reader.boolean("System", true)?,
+        },
+        at: reader.at.clone(),
     })
 }
 
@@ -839,5 +901,7 @@ pub(crate) fn settings(table: &Table, at: &Origin, roots: &[AbsPath]) -> Result<
         signer,
         store_root,
         base_images: base_images(reader.table("BaseImages"))?,
+        accounts: named_tables(&reader, "Accounts", repository_account)?,
+        groups: named_tables(&reader, "Groups", repository_group)?,
     })
 }

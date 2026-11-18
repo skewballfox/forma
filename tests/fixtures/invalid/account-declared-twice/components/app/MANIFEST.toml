@@ -1,0 +1,8 @@
+[Settings]
+User = "svc"
+
+# Identical to the repository's declaration, and still refused: an account
+# declared under [Forma.Accounts] has one place to change.
+[Forma.Account]
+Name = "svc"
+Linger = true

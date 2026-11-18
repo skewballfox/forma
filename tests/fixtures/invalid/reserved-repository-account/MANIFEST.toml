@@ -1,0 +1,5 @@
+[Hosts.forge]
+Components = ["app"]
+
+# forma-build is the builder's default account
+[Forma.Accounts.forma-build]

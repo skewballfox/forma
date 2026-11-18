@@ -59,6 +59,17 @@ static BASE_IMAGES_FIELDS: &[Field] = &[
 
 static GROUP: Shape = strict(&[("Name", Shape::Leaf), ("System", Shape::Leaf)]);
 
+/// An account in the repository manifest. Its name is the table's key.
+static REPOSITORY_ACCOUNT: Shape = strict(&[
+    ("Home", Shape::Leaf),
+    ("Linger", Shape::Leaf),
+    ("SubIds", Shape::Leaf),
+    ("MemberOf", Shape::Leaf),
+]);
+
+/// A group in the repository manifest. Its name is the table's key.
+static REPOSITORY_GROUP: Shape = strict(&[("System", Shape::Leaf)]);
+
 static IMAGE: Shape = strict(&[
     ("Tag", Shape::Leaf),
     ("Containerfile", Shape::Leaf),
@@ -123,6 +134,8 @@ pub(crate) static GLOBAL_FORMA_FIELDS: &[Field] = &[
     ("Signer", strict(&[("Account", Shape::Leaf)])),
     ("Store", strict(&[("Root", Shape::Leaf)])),
     ("BaseImages", strict(BASE_IMAGES_FIELDS)),
+    ("Accounts", Shape::Map(&REPOSITORY_ACCOUNT)),
+    ("Groups", Shape::Map(&REPOSITORY_GROUP)),
 ];
 
 /// What a host changes about one component.
@@ -481,5 +494,41 @@ mod tests {
         let args = table(images[0], "BuildArgs");
         assert_eq!(args.get("A").unwrap().value, Value::String("1".into()));
         assert_eq!(args.get("B").unwrap().value, Value::String("3".into()));
+    }
+
+    fn global(text: &str) -> Result<Table, ManifestError> {
+        let file: Arc<Path> = Arc::from(Path::new("MANIFEST.toml"));
+        let parsed = raw::parse(text, &file)?;
+        let table = canonical(&parsed, REPOSITORY_FIELDS, false, "")?;
+        Ok(table
+            .get("Forma")
+            .map_or_else(Table::default, |node| match &node.value {
+                Value::Table(forma) => forma.clone(),
+                _ => panic!("[Forma] is not a table"),
+            }))
+    }
+
+    #[test]
+    fn repository_accounts_keep_their_names_and_check_their_keys() {
+        let forma = global("[forma.accounts.app]\nlinger = false\nmemberof = [\"render\"]\n").unwrap();
+        let account = table(table(&forma, "Accounts"), "app");
+        assert_eq!(account.get("Linger").unwrap().value, Value::Bool(false));
+        assert!(account.get("MemberOf").is_some());
+        // The name is the key, so a Name key is unknown.
+        let error = global("[Forma.Accounts.app]\nName = \"app\"\n").unwrap_err();
+        assert_eq!(error.code(), "UnknownKey");
+        assert!(error.to_string().contains("[Forma.Accounts.app]"), "{error}");
+    }
+
+    #[test]
+    fn a_host_extends_a_repository_account() {
+        let mut base = global("[Forma.Accounts.app]\nSubIds = 65536\nMemberOf = [\"render\"]\n").unwrap();
+        let host = global("[Forma.Accounts.app]\nMemberOf = [\"video\"]\n[Forma.Accounts.other]\n").unwrap();
+        extend(&mut base, &host, GLOBAL_FORMA_FIELDS);
+        let accounts = table(&base, "Accounts");
+        let app = table(accounts, "app");
+        assert!(app.get("SubIds").is_some());
+        assert_eq!(strings(app.get("MemberOf").unwrap()), ["render", "video"]);
+        assert!(accounts.get("other").is_some());
     }
 }

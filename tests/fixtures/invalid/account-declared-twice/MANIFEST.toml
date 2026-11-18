@@ -1,0 +1,5 @@
+[Hosts.forge]
+Components = ["app"]
+
+[Forma.Accounts.svc]
+Linger = true

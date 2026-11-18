@@ -1,0 +1,5 @@
+[Settings]
+User = "svc"
+
+[[Forma.Groups]]
+Name = "svc-data"

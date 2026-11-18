@@ -1,0 +1,5 @@
+# Two components that share an account, each declaring it under
+# [Forma.Account] instead of the repository declaring it under
+# [Forma.Accounts]. Both declarations must match exactly, as must the group.
+[Hosts.forge]
+Components = ["app", "worker"]

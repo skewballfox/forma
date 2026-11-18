@@ -256,7 +256,7 @@ fn wants(request: &Request<'_>, host: &dyn HostView, warnings: &mut Vec<String>)
                 name: used.group.value.name.to_string(),
                 system: used.group.value.system,
             },
-            &names(used.declared_by.iter().copied()),
+            &names(used.declared_by.iter().chain(&used.joined_by).copied()),
         );
     }
 
